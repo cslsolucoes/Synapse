@@ -1,0 +1,96 @@
+---
+alwaysApply: false
+description: "Mantém pack-inventory.json atualizado após edições em .cursor/ e usa o inventário como índice seletivo antes de escanear diretórios."
+globs: [".cursor/**"]
+---
+
+# Pack Inventory — Auto-atualização e Índice Seletivo
+
+## Escopo
+
+Aplica-se a qualquer operação que cria, edita, renomeia ou deleta arquivos
+em `.cursor/` (qualquer subpasta: `skills/`, `rules/`, `agents/`, `commands/`,
+`Templates/`, `scripts/`). Esta rule garante que `pack-inventory.json` reflita
+sempre o estado atual do pack.
+
+**Não se aplica** a edições fora de `.cursor/` (código-fonte, documentação, etc.).
+
+## Scripts e agents referenciados
+
+| Recurso | Tipo | Quando referenciado |
+| ------- | ---- | ------------------- |
+| `gen_pack_inventory.py` | script | Após qualquer edição em `.cursor/` |
+| `sync_cursor_pack.py` | script | Roda `gen_pack_inventory.py --incremental` automaticamente após sync |
+| `pack-inventory.json` | índice | Antes de escanear `.cursor/` para localizar skills/rules/agents |
+
+---
+
+## Quando atualizar o inventário
+
+Após qualquer operação de **criar, editar, renomear ou deletar** um arquivo
+em `.cursor/` (qualquer subpasta), executar:
+
+```bash
+# Windows
+python .cursor/scripts/gen_pack_inventory.py --incremental
+
+# Linux / macOS
+python3 .cursor/scripts/gen_pack_inventory.py --incremental
+```
+
+Executar **antes de responder** ao usuário sobre o resultado da operação.
+Se o script não existir ou falhar, reportar ao usuário sem bloquear.
+
+O modo `--incremental` é mais rápido: reprocessa apenas os arquivos cujo
+`mtime` mudou desde o último scan, mantendo os demais em cache.
+
+---
+
+## Como usar o inventário como índice seletivo
+
+Antes de escanear `.cursor/` para localizar skills, rules, agents ou templates:
+
+1. Ler `.cursor/pack-inventory.json` (campo `files`)
+2. Filtrar entradas pelo campo `path` (pasta) e `name` (arquivo)
+3. Usar os arquivos encontrados no inventário para a busca — evita
+   varredura desnecessária de todo o diretório
+4. Se um arquivo esperado não estiver no inventário → rodar
+   `gen_pack_inventory.py --incremental` para atualizar, depois repetir a busca
+
+### Campos úteis do inventário
+
+- `files[].name` — nome do arquivo
+- `files[].path` — pasta relativa (ex: `skills/documentation-overview_V1.0.0`)
+- `files[].version` — versão extraída do arquivo
+- `files[].description` — descrição curta
+- `areas` — contagem e manifesto por área (skills, agents, rules, etc.)
+- `_file_mtimes` — mapa `{rel_path: mtime}` usado pelo modo incremental
+
+### Exemplo de busca seletiva
+
+```python
+# Carregar inventário
+import json
+inv = json.loads(open('.cursor/pack-inventory.json').read())
+
+# Listar todas as skills
+skills = [f for f in inv['files'] if f['path'].startswith('skills/')]
+
+# Encontrar skill por nome parcial
+match = next((f for f in skills if 'governance' in f['name']), None)
+# → {'name': 'governance-pack-sync_V1.0.0', 'path': 'skills/...', 'version': '1.0.0', ...}
+```
+
+---
+
+## Versão interna
+
+| Campo           | Valor  |
+| --------------- | ------ |
+| **FileVersion** | 1.0.0  |
+| **Política**    | `.cursor/VERSION.md` |
+
+## Changelog
+
+- 1.0.0 (09/04/2026): Criação da rule — auto-atualização incremental após edições
+  em `.cursor/` e uso do inventário como índice seletivo de busca.

@@ -1,0 +1,331 @@
+# Versionamento — `Packege/synapse/` (CSL fork)
+
+**Package name:** Ararat Synapse (CSL fork)
+**Package version:** 41.3
+**Data:** 2026-04-22
+**Upstream base:** Ararat Synapse 41.0 (copyright 1999-2023, Lukas Gebauer)
+**Fork CSL:** CSL Softwares — suporte a OpenSSL 4.0 + resolucao de DLL path + compatibilidade AD WS 2025 (LDAPS + CBT + tri-plataforma POSIX) + tipagem automatica de atributos LDAP (V41.2) + AddRaw preservando 100% bytes binarios (V41.3)
+**Licenca:** BSD 3-Clause (compativel com licenca upstream Synapse)
+
+---
+
+## Politica de versionamento
+
+Este package segue **duas dimensoes** de versao:
+
+1. **Package version (SemVer MAJOR.MINOR)** — versao agregada publicada no `laz_synapse.lpk` e `synapse.dpk`. Controla a release conjunta do vendor para os consumidores (`ActiveDirectoryORM`, etc.).
+2. **Unit version (AAA.BBB.CCC)** — versao historica de cada unit Synapse, mantida no cabecalho do ficheiro `.pas`. Segue convencao upstream: `AAA` = major protocolar, `BBB` = minor, `CCC` = patch.
+
+**Politica de bump:**
+
+- Package MAJOR: breaking change em API publica ou remocao de unit.
+- Package MINOR: nova unit, nova classe ou metodo adicionado, nova funcionalidade (ex.: V41.1 adicionou `ssl_openssl4`, `ssl_openssl4_lib`, `ssl_openssl_paths`).
+- Unit AAA.BBB.CCC: segue cabecalho original de cada unit; fork CSL bumpa `CCC` quando patch mecanico, `BBB` quando funcionalidade nova.
+
+---
+
+## Inventario de units (50 Pascal + 5 include + 2 packages)
+
+### Core — Sockets e LDAP
+
+| Unit | Tipo | Versao | Origem | Papel |
+|---|---|---|---|---|
+| `ldapsend.pas` | Core LDAP | 001.007.005 | CSL fork (upstream 001.007.001) | Cliente LDAP v2/v3 + SSPI GSSAPI+CBT + 8 controles AD + LDAP Signing + tri-plataforma POSIX + tipagem automatica (`TLDAPValueType` + `TLDAPAttributeValue`) + fix EEncodingError + AddRaw bypassa CP1252+UnquoteStr (V41.3) |
+| `blcksock.pas` | Core Socket | 009.011.001 | CSL fork (upstream 009.011.000) | Socket TCP bloqueante + plugin SSL + SOCKS + HTTP CONNECT + `GetPeerCertSHA256Hash` (CBT RFC 5929) |
+| `synsock.pas` | Abstraction layer | (inclui `ss*.inc`) | Upstream | Plataforma-agnostica: `sswin32.inc` (Windows) / `ssfpc.inc` (FPC POSIX) / `ssposix.inc` (Delphi POSIX) / `sslinux.inc` (Delphi Linux) |
+| `synaser.pas` | Serial | Upstream | Upstream | Porta serie bloqueante (Windows + Linux) |
+
+### Utils — Suporte e utilitarios
+
+| Unit | Tipo | Versao | Origem | Papel |
+|---|---|---|---|---|
+| `synautil.pas` | Utils | 004.016.003 | CSL fork (upstream 004.016.002) | UTF-8, DateTime, FileTime AD (`FileTimeToDateTime`/`DateTimeToFileTime`), base64, MD5, SHA1, escaping |
+| `synacode.pas` | Encoding | 002.002.003 | CSL fork (upstream 002.002.002) | Base64, QuotedPrintable, URL encode, HTML entities, MD5, HMAC |
+| `synachar.pas` | Character sets | Upstream | Upstream | Conversao entre ISO-8859-*, Windows-125*, KOI8-R, UTF-7, UTF-8 |
+| `synaip.pas` | IP parsing | Upstream | CSL fork (~4 linhas whitespace) | Parsers IPv4/IPv6, validacao de formato |
+| `synacrypt.pas` | Crypto blocks | Upstream | Upstream | DES, 3DES, AES (CBC/ECB) |
+| `synadbg.pas` | Debug | Upstream | Upstream | `TSynaDebug` — traca eventos para arquivo de log |
+| `synafpc.pas` | FPC compat | Upstream | CSL fork (~24 linhas) | Shim de compatibilidade FPC (`LongInt`/`SizeInt`, `Sleep`, callbacks) |
+| `synaicnv.pas` | Iconv | Upstream | Upstream | Conversoes de character set via libiconv (POSIX) |
+| `synamisc.pas` | Misc utils | Upstream | Upstream | `WaitForData`, varios utilitarios de rede (GetIEProxy, pings ARP) |
+| `asn1util.pas` | ASN.1/BER | Upstream | Upstream | Encoder/decoder ASN.1 BER (usado por LDAP e SNMP) |
+
+### SSL/TLS — Plugins
+
+| Unit | Tipo | Versao | Origem | Papel |
+|---|---|---|---|---|
+| `ssl_openssl.pas` | SSL plugin legacy | 001.004.001 | CSL fork (~25 linhas) | OpenSSL 0.9.7-1.1.x (`libeay32`/`ssleay32`) — `deprecated` em Delphi |
+| `ssl_openssl_lib.pas` | SSL imports legacy | Upstream | Upstream | Imports de funcoes OpenSSL legacy |
+| `ssl_openssl11.pas` | SSL plugin OpenSSL 1.1 | Upstream | Upstream | OpenSSL 1.1.x oficial |
+| `ssl_openssl11_lib.pas` | SSL imports OpenSSL 1.1 | Upstream | Upstream | Imports para 1.1.x |
+| `ssl_openssl3.pas` | SSL plugin OpenSSL 3.x | Upstream | Upstream | OpenSSL 3.x oficial (`libssl-3`/`libcrypto-3`) |
+| `ssl_openssl3_lib.pas` | SSL imports OpenSSL 3.x | Upstream | Upstream | Imports para 3.x |
+| **`ssl_openssl4.pas`** | **SSL plugin OpenSSL 4.0** | **001.004.000** | **CSL fork — 100% novo** | `TSSLOpenSSL4` (fork mecanico de `TSSLOpenSSL3` — classe renomeada, DLLs `libssl-4`/`libcrypto-4`) |
+| **`ssl_openssl4_lib.pas`** | **SSL imports OpenSSL 4.0** | **001.004.000** | **CSL fork — 100% novo** | 8 DLL names bumped `-3` → `-4`; signatures Pascal identicas (ICS V9.6 confirma API 3.x=4.0) |
+| **`ssl_openssl_paths.pas`** | **DLL path helper** | **001.000.000** | **CSL fork — 100% novo** | `TOpenSSLPaths.Apply(N)` chama `SetDllDirectory(<exe>/dll/v<N>/<arch>)` — Windows-only, POSIX no-op |
+| `ssl_openssl_capi.pas` | Windows CAPI bridge | Upstream | Upstream | Uso de certificados do Windows Certificate Store via `crypt32.dll` |
+| `ssl_cryptlib.pas` | SSL plugin CryptLib | Upstream | Upstream | Alternativa a OpenSSL (Peter Gutmann cryptlib) |
+| `ssl_libssh2.pas` | SSL plugin libssh2 | Upstream | Upstream | Suporte SSH2 |
+| `ssl_sbb.pas` | SSL plugin SBB | Upstream | Upstream | EldoS SecureBlackbox 32-bit |
+| `ssl_sbb16.pas` | SSL plugin SBB 16 | Upstream | Upstream | EldoS SecureBlackbox 16-bit |
+| `ssl_streamsec.pas` | SSL plugin StreamSec | Upstream | Upstream | StreamSec TLS Pro (comercial) |
+| `Crypt32.pas` | Crypt32 imports | Upstream | Upstream | Imports de `crypt32.dll` para CAPI (usado por `ssl_openssl_capi`) |
+
+### Protocolos — Aplicacao
+
+| Unit | Tipo | Versao | Origem | Papel |
+|---|---|---|---|---|
+| `httpsend.pas` | HTTP client | 003.013.000 | Upstream | `THTTPSend` — GET/POST/PUT/DELETE + autenticacao Basic/Digest/NTLM + proxy |
+| `smtpsend.pas` | SMTP client | Upstream | Upstream | `TSMTPSend` — envio de emails + autenticacao Login/Plain/CRAM-MD5 |
+| `pop3send.pas` | POP3 client | Upstream | Upstream | `TPOP3Send` — recepcao de emails |
+| `imapsend.pas` | IMAP4 client | Upstream | Upstream | `TIMAPSend` — IMAP4rev1 |
+| `ftpsend.pas` | FTP client | Upstream | Upstream | `TFTPSend` + `TFTPList` + `TFTPListRec` — FTP classico |
+| `ftptsend.pas` | TFTP client | Upstream | Upstream | `TTFTPSend` — Trivial FTP (RFC 1350) |
+| `tlntsend.pas` | Telnet client | Upstream | Upstream | `TTelnetSend` |
+| `nntpsend.pas` | NNTP client | Upstream | Upstream | `TNNTPSend` — Usenet |
+| `dnssend.pas` | DNS client | Upstream | Upstream | `TDNSSend` — queries A/MX/PTR/NS/SRV/TXT |
+| `pingsend.pas` | Ping | Upstream | Upstream | `TPINGSend` — ICMP echo |
+| `clamsend.pas` | ClamAV | Upstream | Upstream | `TClamSend` — integracao com ClamAV daemon |
+| `snmpsend.pas` | SNMP | Upstream | Upstream | `TSNMPSend` + `TSNMPRec` + `TSNMPMib` — SNMPv1/v2c/v3 |
+| `sntpsend.pas` | SNTP/NTP | Upstream | Upstream | `TSNTPSend` — sincronizacao de tempo |
+| `slogsend.pas` | Syslog | Upstream | Upstream | `TSyslogSend` + `TSyslogMessage` — RFC 3164 |
+
+### MIME — Multipart e encoding
+
+| Unit | Tipo | Versao | Origem | Papel |
+|---|---|---|---|---|
+| `mimemess.pas` | MIME message | Upstream | Upstream | `TMimeMess` + `TMessHeader` — email multipart |
+| `mimepart.pas` | MIME part | Upstream | Upstream | `TMimePart` — partes individuais MIME |
+| `mimeinln.pas` | MIME inline encoding | Upstream | Upstream | Helpers de decoding inline para headers RFC 2047 |
+
+### Utilidades adicionais
+
+| Unit | Tipo | Versao | Origem | Papel |
+|---|---|---|---|---|
+| `tzutil.pas` | Timezone | Upstream | Upstream | Conversoes de timezone (Windows TZ database) |
+| `laz_synapse.pas` | Lazarus companion | Upstream | Upstream | Unit companion do `.lpk` (registro de icons/runtime) |
+
+### Include files (5)
+
+| Include | Tipo | Papel |
+|---|---|---|
+| `jedi.inc` | Compiler defines | Base de defines cross-compiler (JEDI — extensamente reescrito por CSL, ~4350 linhas) |
+| `kylix.inc` | Kylix defines | Defines especificos para Kylix (Delphi Linux legacy) |
+| `sswin32.inc` | Socket layer Windows | Inclusao de Winsock (Windows nativo) |
+| `ssfpc.inc` | Socket layer FPC | Inclusao de sockets POSIX via FPC |
+| `ssposix.inc` | Socket layer Delphi POSIX | Inclusao de sockets POSIX via Delphi LINUX64/macOS64 |
+| `sslinux.inc` | Socket layer Delphi Linux | Inclusao especifica Delphi Linux |
+| `ssos2ws1.inc` | Socket layer OS/2 | OS/2 Winsock (legacy) |
+| `ssdotnet.inc` | Socket layer .NET | Delphi .NET (`System.Net.Sockets`) |
+
+### Packages (2)
+
+| Package | Versao | Tipo | Scope |
+|---|---|---|---|
+| `laz_synapse.lpk` | 41.3 | Lazarus runtime | 42 units (35 upstream + 7 CSL) |
+| `synapse.dpk` | 41.3 | Delphi 12/13 runtime | Simetrico ao `.lpk` |
+
+---
+
+## Fork CSL — duas camadas de modificacoes
+
+### Camada 1: Fork historico (13/04/2026)
+
+Pre-existente a sessao V1.5.0+. A pasta `../bak/` preserva **10 backups** (`.bak`) dos ficheiros originais.
+
+**8 ficheiros efectivamente modificados:**
+
+| Ficheiro | Actual | Diff vs bak | Proposito da modificacao |
+|---|---|---|---|
+| `ldapsend.pas` | 001.007.002 → 001.007.003 (V1.7.0) | ~1000 linhas | GSSAPI+CBT, controles AD, LDAP Signing, utils FileTime |
+| `jedi.inc` | — | ~4350 linhas | Reescrita completa de defines compilador |
+| `blcksock.pas` | 009.011.001 | ~140 linhas | LDAPS tweaks + `GetPeerCertSHA256Hash` (CBT RFC 5929) |
+| `synautil.pas` | 004.016.003 | ~70 linhas | Helpers AD FileTime |
+| `synafpc.pas` | — | ~24 linhas | FPC compat tweaks |
+| `ssl_openssl.pas` | 001.004.001 | ~25 linhas | Minor adjustments |
+| `synacode.pas` | 002.002.003 | ~4 linhas | Whitespace/EOL |
+| `synaip.pas` | — | ~4 linhas | Whitespace/EOL |
+
+**2 backups identicos** (copia preventiva sem alteracao real):
+
+- `ssl_openssl_lib.pas.bak` = ficheiro actual
+- `synsock.pas.bak` = ficheiro actual
+
+### Camada 2: Fork desta sessao (21/04/2026 — V1.5.0 a V1.7.0) + extensao V41.2 (22/04/2026 — V1.7.1)
+
+**3 units 100% novas:**
+
+- `ssl_openssl4.pas` — `TSSLOpenSSL4` (suporte OpenSSL 4.0.0)
+- `ssl_openssl4_lib.pas` — imports das DLLs OpenSSL 4.0
+- `ssl_openssl_paths.pas` — `TOpenSSLPaths` (helper `SetDllDirectory`)
+
+**V1.7.0 patch em `ldapsend.pas`** (21/04/2026, tri-plataforma POSIX):
+
+- `uses` condicional FPC vs Delphi + `{$IFDEF MSWINDOWS}` em `Winapi.Windows`
+- 6 blocos SSPI/GSSAPI envolvidos em `{$IFDEF MSWINDOWS}`
+- 4 stubs POSIX (BindGSSAPI/BindGSSAPIWithCBT retornam False; SignLDAPMessage no-op; VerifyLDAPMessage permissivo)
+- Mensagem POSIX: `"GSSAPI via SSPI nao disponivel em POSIX -- use Kerberos via libgssapi_krb5 (agendado V2.0.0)"`
+- Versao unit bumped **001.007.002 → 001.007.003** no header
+
+**V1.7.0 patch em `blcksock.pas`** (21/04/2026):
+
+- Versao unit bumped **009.011.000 → 009.011.001** (consistencia com release)
+
+**V1.7.1 patch em `ldapsend.pas`** (22/04/2026 — tipagem automatica + fix EEncodingError):
+
+- Novo enum publico `TLDAPValueType` (RFC 4517 + MS-ADTS): 16 tipos (`vtDirectoryString`, `vtInteger`, `vtFileTime`, `vtSID`, `vtGUID`, `vtOctetString`, `vtGeneralizedTime`, etc.)
+- Mapa estatico `LDAP_KNOWN_ATTRIBUTE_TYPES` (~110 atributos AD default) + `ResolveLDAPValueType(Name): TLDAPValueType` tolerante a sufixos `;binary`/`;range=...`
+- Novo record publico `TLDAPAttributeValue` com API estilo `TField` (`AsString` / `AsInteger` / `AsFloat` / `AsBoolean` / `AsDateTime` / `AsBinary` / `AsHex` / `AsSid` / `AsGuid` / `AsVariant` / `IsNull`); record por valor, sem alocacao
+- `TLDAPAttribute`: novos campos `FValueType`, `FRawValues: array of AnsiString` (preserva bytes crus do socket); properties novas `ValueType` (read-only), `Value` (singular), `Values[Index]` (multi-valued)
+- `TLDAPAttribute.Put` passa a usar `UnicodeToRawAnsi` byte-a-byte (`AnsiChar(Ord(S[I]) and $FF)`) em vez de `s := Value;` (conversao implicita `UnicodeString → AnsiString` via `CP_ACP` que lancava `EEncodingError 'No mapping for the Unicode character...'` em Delphi 12 strict com `NoBestFitChars`)
+- `TLDAPAttribute.Get(Index)` devolve string ja formatada conforme `FValueType` — consumidores existentes recebem `'{XXXXXXXX-...}'` para `objectGUID`, `'S-1-5-21-...'` para `objectSid`, inteiros para `userAccountControl`, datas ISO-like para `whenCreated`/`pwdLastSet`, hex para `thumbnailPhoto`
+- `TLDAPAttribute.SetAttributeName` resolve automaticamente `FValueType := ResolveLDAPValueType(Value)`; se `FIsBinary = True` e `FValueType = vtUnknown`, infere `vtOctetString`
+- 6 helpers file-private: `UnicodeToRawAnsi`, `SafeUtf8Decode` (UTF-8 com fallback Latin-1 nunca-lanca), `RawToHex`, `RawToSid` (MS-ADTS), `RawBytesToGuid`/`RawToGuidString`, `RawToFileTime`, `RawToGeneralizedTime`, `ParseFileTimeInt64`, `ParseGeneralizedTime`
+- `uses` acrescentou `Variants` (FPC) / `System.Variants` (Delphi) para `TLDAPAttributeValue.AsVariant`
+- Versao unit bumped **001.007.003 → 001.007.004** no header + bloco historico V1.7.1 CSL documentado
+- Backup preservado: `bak/ldapsend.20260421_2335.bak` (81 696 bytes — baseline 001.007.003)
+- **Compatibilidade:** assinaturas de `Add` / `Put` / `Get` / `SetAttributeName` / `AttributeName` / `IsBinary` preservadas. Consumidores existentes (ORM `src/` intocado) recebem strings limpas em vez de lixo ou excepcao. API nova (`TLDAPAttributeValue` + `ValueType` + `Value` + `Values[Index]`) e 100% opt-in.
+- **Verificacao:** Delphi Win64 (dcc64) 31415 linhas, 0.81 s, 0 erros — verde; Delphi Win32 verde em fontes (lock de `.exe` em execucao durante link). FPC Win32/Win64 tem gap pre-existente `System.SyncObjs` em `sswin32.inc` (T2 da V1.7.0), nao regressao da V1.7.1.
+
+**Packages bumped:**
+
+- `laz_synapse.lpk` 41.0 → 41.1 → 41.2 (35 → 42 files)
+- `synapse.dpk` 41.1 → 41.2 (package Delphi 12/13 simetrico ao `.lpk`)
+
+---
+
+## Matriz de plataformas (V41.3 / V1.7.2)
+
+| SO + Arch | Compilador | Chain socket | Estado | Autenticacao GSSAPI |
+|---|---|---|---|---|
+| Windows Win32 | Delphi 12.x | `sswin32.inc` | Estavel | SSPI via `secur32.dll` |
+| Windows Win64 | Delphi 12.x | `sswin32.inc` | Estavel | SSPI via `secur32.dll` |
+| Windows Win32 | FPC 3.3.1+ | `sswin32.inc` | Estavel | SSPI via `secur32.dll` |
+| Windows Win64 | FPC 3.3.1+ | `sswin32.inc` | Estavel | SSPI via `secur32.dll` |
+| Linux x86_64 | FPC 3.3.1+ | `ssfpc.inc` | **Destravado V1.7.0** | Stub (False + msg V2.0.0) |
+| Linux ARM64 | FPC 3.3.1+ | `ssfpc.inc` | **Destravado V1.7.0** | Stub |
+| FreeBSD | FPC 3.3.1+ | `ssfpc.inc` | **Destravado V1.7.0** | Stub |
+| macOS Intel | FPC 3.3.1+ | `ssfpc.inc` | **Destravado V1.7.0** | Stub |
+| macOS Apple Silicon | FPC 3.3.1+ | `ssfpc.inc` | **Destravado V1.7.0** | Stub |
+| Delphi LINUX64 | Delphi 12.x | `ssposix.inc` | **Destravado V1.7.0** | Stub |
+| Delphi macOS64 Intel | Delphi 12.x | `ssposix.inc` | **Destravado V1.7.0** | Stub |
+| Delphi macOS64 Apple Silicon | Delphi 12.x | `ssposix.inc` | **Destravado V1.7.0** | Stub |
+
+**GSSAPI POSIX real** agendado para **V2.0.0** (port via `libgssapi_krb5` — etapas E1-E5, ~430 LoC).
+
+---
+
+## Changelog consolidado
+
+### V41.3 (2026-04-22)
+
+**Patch em `ldapsend.pas`** (AddRaw + Put defensivo + Clear override + RawTo*Time defensive):
+
+- Versao unit **001.007.004 → 001.007.005**.
+- Bug critico resolvido: `Put → UnquoteStr` consumia bytes 0x22 silenciosamente (`objectGUID` do AD real perdia 1 byte se contivesse `"`). Bytes 0x80-0xFF eram corrompidos por CP1252 best-fit na conversao implicita `AnsiString → UnicodeString`.
+- Novo metodo publico `TLDAPAttribute.AddRaw(const ARaw: AnsiString): Integer` — bypassa **TODA** a conversao (`UnicodeToRawAnsi`, `UnquoteStr`, `EncodeBase64`) e armazena bytes directamente em `FRawValues` via `StoreRawValue`. Validado teste 16: preserva 100% os 256 bytes 0x00-0xFF byte-a-byte.
+- Parser ASN.1 modificado em **2 callsites**: `TLDAPSend.Search` (linha ~2157) e `TLDAPSend.DoSearchAD` (linha ~2330) — `a.Add(u)` substituido por `a.AddRaw(u)`. Bytes ASN.1 preservados desde o socket ate ao consumidor.
+- `TLDAPAttribute.Put` defensivo: salta `UnquoteStr` quando `FValueType in [vtGUID, vtSID, vtOctetString, vtBitString]` (protege paths publicos `a.Add('string')`).
+- `TLDAPAttribute.Get(Index)` blindado com `try/except` duplo + fallback `RawToHex` final (nenhum decoder pode abortar a iteracao do consumidor).
+- `TLDAPAttribute.Clear` override resetando `FRawValues` em sincronia com TStringList interno (futuro-proof contra paths que reusem instancia via Clear+Add).
+- `RawToFileTime` e `RawToGeneralizedTime` (e `ParseGeneralizedTime`) usam `SafeUtf8Decode` em vez de `string(ARaw)` (conversao implicita perigosa em Delphi 12 strict).
+- **Nova flag `;binary` para Put**: combinada `if FIsbinary then Base64 else if (FValueType in BINARY_TYPES) then NoUnquote else UnquoteStr`.
+
+**Packages:**
+
+- `laz_synapse.lpk` 41.2 → 41.3
+- `synapse.dpk` 41.2 → 41.3
+
+**Validacao real:**
+
+- AD `cslsolucoes.com.br`, `CN=Administrador,...`: `objectGUID={E22791BE-5255-4665-951F-4A630F4AE269}` (16 bytes, formato GUID completo) — antes do fix vinha `BE1827E2555265461F4A630F4AE269` (15 bytes, hex truncado por `UnquoteStr` consumir o byte 0x22 final).
+- 33/33 atributos do Administrador listados sem perda; sem regressao.
+
+**Backups:**
+
+- `bak/ldapsend.20260422_0124.bak` (estado intermediario V1.7.1.1 antes do AddRaw)
+- `bak/ldapsend.20260422_0057.bak` (V1.7.1 antes dos defensive fixes)
+
+### V41.2 (2026-04-22)
+
+**Patch em `ldapsend.pas`** (tipagem automatica de atributos LDAP + fix EEncodingError):
+
+- Versao unit **001.007.003 → 001.007.004**
+- Novo enum publico `TLDAPValueType` (16 tipos RFC 4517 + MS-ADTS)
+- Mapa estatico `LDAP_KNOWN_ATTRIBUTE_TYPES` (~110 atributos AD) + `ResolveLDAPValueType`
+- Novo record publico `TLDAPAttributeValue` (API estilo `TField` — AsString/AsInteger/AsFloat/AsBoolean/AsDateTime/AsBinary/AsHex/AsSid/AsGuid/AsVariant/IsNull)
+- `TLDAPAttribute`: properties novas `ValueType`, `Value`, `Values[Index]`; campos privados `FValueType`, `FRawValues`
+- `Put` usa `UnicodeToRawAnsi` byte-a-byte (substitui `s := Value;` que lancava `EEncodingError` em Delphi 12)
+- `Get` devolve string ja decodificada conforme `FValueType`
+- 6 helpers file-private: `UnicodeToRawAnsi`, `SafeUtf8Decode`, `RawToHex`, `RawToSid`, `RawBytesToGuid`/`RawToGuidString`, `RawToFileTime`, `RawToGeneralizedTime`
+- `uses`: +`Variants` (FPC) / +`System.Variants` (Delphi)
+- **API preservada:** `Add`/`Put`/`Get`/`AttributeName`/`IsBinary` com mesmas assinaturas. Consumidores existentes recebem strings ja formatadas (zero alteracoes em `src/` do ORM).
+
+**Packages:**
+
+- `laz_synapse.lpk` 41.1 → 41.2
+- `synapse.dpk` 41.1 → 41.2
+
+**Backups:**
+
+- `bak/ldapsend.20260421_2335.bak` (81 696 bytes — baseline 001.007.003 preservado)
+
+### V41.1 (2026-04-21)
+
+**Novas units:**
+- `ssl_openssl4.pas` (001.004.000) — `TSSLOpenSSL4` para OpenSSL 4.0.0
+- `ssl_openssl4_lib.pas` (001.004.000) — imports DLLs OpenSSL 4.0
+- `ssl_openssl_paths.pas` (001.000.000) — `TOpenSSLPaths.Apply(N)` helper
+
+**Units patchadas (V1.7.0):**
+- `ldapsend.pas` 001.007.002 → 001.007.003 — tri-plataforma POSIX (6 blocos SSPI guardados + 4 stubs)
+- `blcksock.pas` 009.011.000 → 009.011.001 — consistencia de release
+
+**Packages:**
+- `laz_synapse.lpk` 41.0 → 41.1 (35 → 42 files)
+- `synapse.dpk` 41.1 — novo package Delphi 12/13 simetrico
+
+### V41.0 (upstream)
+
+Snapshot de referencia do upstream em `Packege/synapse.v41/` (nao entra em build).
+
+### Fork historico (2026-04-13)
+
+8 ficheiros modificados com backups em `bak/`:
+
+- `ldapsend.pas` — GSSAPI+CBT + controles AD (~1000 linhas)
+- `blcksock.pas` — `GetPeerCertSHA256Hash` + LDAPS tweaks (~140 linhas)
+- `synautil.pas` — FileTime helpers (~70 linhas)
+- `jedi.inc` — reescrita completa (~4350 linhas)
+- `synafpc.pas`, `ssl_openssl.pas`, `synacode.pas`, `synaip.pas` — ajustes menores
+
+---
+
+## Roadmap
+
+- **V41.3.1 / ADORM V1.7.3** — Fix do guard `System.SyncObjs`/`SyncObjs` em `sswin32.inc` + `blcksock.pas` para destravar FPC Win32/Win64 do ORM completo; helper publico `DecodeUAC(Int64): string` em `ldapsend.pas`; `RawToFileTime` aceitar Int64 binario OCTET STRING.
+- **V41.4** — Port `TSslRootCAStore` (ICS) para uso de certstore centralizado (ver `.cursor/plans/synapse-csl-ssl-rootcastore_V1.0.plan.md`).
+- **V41.5** — HTTP modernization (OAuth Bearer, CookieJar, JSON helpers — ver `.cursor/plans/synapse-csl-http-modernization_V1.0.plan.md`).
+- **V41.6** — SMTP modernization (XOAUTH2 + STARTTLS auto — ver `.cursor/plans/synapse-csl-smtp-modernization_V1.0.plan.md`).
+- **V41.7** — IMAP modernization (IDLE + UIDPLUS + SearchEx — ver `.cursor/plans/synapse-csl-imap-modernization_V1.0.plan.md`).
+- **V41.8 / ADORM V2.0.0** — Port real `libgssapi_krb5` para POSIX (etapas E1-E5 detalhadas em [../../Documentation/Roadmap/Roadmap_ActiveDirectoryORM_V2.0.md](../../Documentation/Roadmap/Roadmap_ActiveDirectoryORM_V2.0.md)).
+- **V42.0** — Sincronizacao (opcional) do patch CSL para `projects/package/synapse/` (decisao futura).
+
+---
+
+## Referencias
+
+- [README.md](README.md) — visao geral do package CSL fork
+- [Documentation/README.md](Documentation/README.md) — hub da documentacao vendor
+- [Documentation/Analise/README.md](Documentation/Analise/README.md) — indice da analise exaustiva por unit/classe
+- [Documentation/LDAPSend.md](Documentation/LDAPSend.md) — analise actual da `TLDAPSend`
+- [Documentation/TCPBlockSocket.md](Documentation/TCPBlockSocket.md) — analise actual de `TTCPBlockSocket`
+- [Documentation/SSLOpenSSL.md](Documentation/SSLOpenSSL.md) — analise actual da familia SSL
+- Upstream Synapse: <https://github.com/geby/synapse>
+- Ararat Synapse docs: <https://www.ararat.cz/synapse/doku.php>
+
+---
+
+**Gerado:** 2026-04-22
+**Autor:** CSL Softwares
+**Scope:** `Packege/synapse/` (fork CSL)

@@ -1,0 +1,115 @@
+package synapse;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$IMPLICITBUILD ON}
+{$RUNONLY}
+{$DESCRIPTION 'Ararat Synapse 41.1 + CSL fork (ssl_openssl4* + ssl_openssl_paths) - runtime package for Delphi 12/13'}
+
+(*
+  synapse.dpk -- Runtime package Delphi para Ararat Synapse + fork CSL
+
+  Project:        ActiveDirectoryORM - vendor Packege/synapse/
+  PackageVersion: 41.1  (Synapse 001.007.002 + 3 units fork CSL 2026-04-21)
+  Author:         Lukas Gebauer (Synapse upstream) + Claiton de Souza Linhares (CSL fork)
+  Date:           21/04/2026
+
+  Alvo primario: Delphi 12 Athens (RAD Studio 23.0).
+  Compat: Delphi 13 (Studio 24.0) -- sem mudanca no .dpk.
+
+  Caracteristicas:
+    - Runtime-only ({$RUNONLY}) -- Synapse nao tem componentes design-time.
+    - {$IMPLICITBUILD ON} -- permite recompilar automaticamente em clientes.
+    - Contem 38 units: 35 do Synapse upstream + 3 do fork CSL
+      (ssl_openssl4, ssl_openssl4_lib, ssl_openssl_paths).
+
+  Licenca:
+    - Synapse upstream: BSD (Copyright 1999-2014 Lukas Gebauer).
+    - Fork CSL 2026-04-21: proprietary, adiciona suporte OpenSSL 4.0.
+
+  Espelho: equivalente a laz_synapse.lpk (Lazarus). Ambos devem manter
+           a mesma lista de units.
+
+  Uso:
+    Compilar na IDE (Project > Build) OU via linha de comando:
+      dcc32 -M -B Packege\synapse\synapse.dpk
+    Output: synapse.bpl em $(BDSCOMMONDIR)\Bpl.
+
+  Changelog (file):
+  - 41.1 (2026-04-21): Criacao inicial. Adiciona ssl_openssl4, ssl_openssl4_lib,
+                       ssl_openssl_paths como extensoes do fork CSL.
+*)
+
+requires
+  rtl;
+
+contains
+  asn1util          in 'asn1util.pas',
+  blcksock          in 'blcksock.pas',
+  clamsend          in 'clamsend.pas',
+  dnssend           in 'dnssend.pas',
+  ftpsend           in 'ftpsend.pas',
+  ftptsend          in 'ftptsend.pas',
+  httpsend          in 'httpsend.pas',
+  imapsend          in 'imapsend.pas',
+  ldapsend          in 'ldapsend.pas',
+  mimeinln          in 'mimeinln.pas',
+  mimemess          in 'mimemess.pas',
+  mimepart          in 'mimepart.pas',
+  nntpsend          in 'nntpsend.pas',
+  pingsend          in 'pingsend.pas',
+  pop3send          in 'pop3send.pas',
+  slogsend          in 'slogsend.pas',
+  smtpsend          in 'smtpsend.pas',
+  snmpsend          in 'snmpsend.pas',
+  sntpsend          in 'sntpsend.pas',
+  synachar          in 'synachar.pas',
+  synacode          in 'synacode.pas',
+  synacrypt         in 'synacrypt.pas',
+  synadbg           in 'synadbg.pas',
+  synafpc           in 'synafpc.pas',
+  synaicnv          in 'synaicnv.pas',
+  synaip            in 'synaip.pas',
+  synamisc          in 'synamisc.pas',
+  synaser           in 'synaser.pas',
+  synautil          in 'synautil.pas',
+  synsock           in 'synsock.pas',
+  tlntsend          in 'tlntsend.pas',
+
+  { --- SSL engines Synapse upstream --- }
+  ssl_openssl       in 'ssl_openssl.pas',
+  ssl_openssl_lib   in 'ssl_openssl_lib.pas',
+  ssl_openssl11     in 'ssl_openssl11.pas',
+  ssl_openssl11_lib in 'ssl_openssl11_lib.pas',
+  ssl_openssl3      in 'ssl_openssl3.pas',
+  ssl_openssl3_lib  in 'ssl_openssl3_lib.pas',
+
+  { --- Fork CSL 2026-04-21: OpenSSL 4.0 + path helper --- }
+  ssl_openssl4      in 'ssl_openssl4.pas',
+  ssl_openssl4_lib  in 'ssl_openssl4_lib.pas',
+  ssl_openssl_paths in 'ssl_openssl_paths.pas';
+
+end.

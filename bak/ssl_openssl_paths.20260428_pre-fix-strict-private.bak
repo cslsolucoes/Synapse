@@ -1,5 +1,5 @@
 {==============================================================================|
-| Project : Ararat Synapse (CSL fork)                            | 001.000.001 |
+| Project : Ararat Synapse (CSL fork)                            | 001.000.000 |
 |==============================================================================|
 | Content: OpenSSL DLL path resolver (SetDllDirectory helper)                  |
 |==============================================================================|
@@ -46,10 +46,6 @@
 |                             Expõe TOpenSSLPaths com Apply/Resolve/           |
 |                             SetCustomPath. Windows-only para SetDllDirectory;|
 |                             POSIX stub no-op (usar LD_LIBRARY_PATH/dlopen).  |
-|   001.000.001 (2026-04-28): Fix Delphi 12 — remoção do initialization        |
-|                             "TOpenSSLPaths.FCustomPath := ''" que causa      |
-|                             E2361 (Cannot access private symbol). Strict     |
-|                             private class var auto-inicializa para ''.       |
 |==============================================================================}
 
 {:@abstract(OpenSSL DLL path resolver)
@@ -169,8 +165,7 @@ begin
 end;
 {$ENDIF}
 
-{ CSL patch 2026-04-28 — strict private class var auto-init para '' (string vazia)
-  em Delphi 12; linha removida por causar E2361 (Cannot access private symbol).
-  Original: TOpenSSLPaths.FCustomPath := ''; }
+initialization
+  TOpenSSLPaths.FCustomPath := '';
 
 end.

@@ -12,7 +12,7 @@ Esta é uma **cópia CSL** do Synapse, derivada do upstream oficial em <https://
 
 ## Índice
 
-- [Extensões do fork CSL](#extensões-do-fork-csl-2026-04-21-sem-precedente-upstream)
+- [Extensões do fork](#extensões-do-fork-sem-precedente-upstream)
 - [Quick Start — LDAPS + OpenSSL 4.0 + CBT em 20 linhas](#quick-start--ldaps--openssl-40--cbt)
 - [API CSL-only — classe por classe](#api-csl-only--classe-por-classe)
   - [TOpenSSLPaths](#topensslpaths-unit-ssl_openssl_pathspas)
@@ -31,14 +31,67 @@ Esta é uma **cópia CSL** do Synapse, derivada do upstream oficial em <https://
 
 ---
 
-## Extensões do fork CSL 2026-04-21 (sem precedente upstream)
+## Extensões do fork (sem precedente upstream)
+
+### v41.3 e anteriores (2026-04-21, contribuição CSL Tech Solutions)
 
 | Unit | Propósito | Versão | Baseada em |
 | --- | --- | --- | --- |
 | `ssl_openssl4.pas` | SSL plugin para **OpenSSL 4.0.0** (classe `TSSLOpenSSL4`) | 001.004.000 | Fork mecânico de `ssl_openssl3.pas` — classe renomeada, `LibName` trocado |
 | `ssl_openssl4_lib.pas` | Imports para `libcrypto-4*.dll` / `libssl-4*.dll` + `.so.4` + `.4.dylib` | 001.004.000 | Fork mecânico de `ssl_openssl3_lib.pas` — **8 DLL names renomeados** (`-3` → `-4`). Signatures Pascal **inalteradas** (ICS V9.6 confirma API unificada 3.x+4.0). |
 | `ssl_openssl_paths.pas` | Helper opt-in `TOpenSSLPaths.{Apply,Resolve,SetCustomPath}` para `SetDllDirectory` | 001.000.000 | Unit 100% nova. Windows-only; POSIX é stub no-op. |
-| `synapse.dpk` | Package Delphi 12/13 runtime (40 units) | 41.3 | Simétrico ao `laz_synapse.lpk` (Lazarus) |
+
+### v41.4 (2026-04-30, contribuição CSL Tech Solutions)
+
+| Unit | Propósito | Versão |
+| --- | --- | --- |
+| `ssl_openssl_x509_ext.pas` | Companion cross-platform: leitor de PFX X509 via OpenSSL 3.x. `TX509Ext.PKCS12ReadFromBytes`, `X509GetNotBefore/After`, `X509GetAllExtensions`, `X509ASN1TimeToDateTimeUTC` | 001.000.000 |
+| `ssl_openssl_icpbrasil_oids.pas` | Constantes OIDs DOC-ICP-04 (6 OIDs `2.16.76.1.3.*`) + helpers `IsOidIcpBrasilPJ/PF` | 001.000.000 |
+| `ssl_openssl_icpbrasil_types.pas` | Record `TIcpBrasilCertificado` (17 campos) + `TIcpBrasilTipo` enum + 3 excecoes especificas | 001.000.000 |
+| `ssl_openssl_icpbrasil_subject.pas` | Parser CN `EMPRESA:CNPJ` / `NOME:CPF` + validadores CNPJ/CPF mod-11 (Receita Federal) | 001.000.000 |
+| `ssl_openssl_icpbrasil_othername.pas` | Parsers ASN.1 OtherName ICP-Brasil v3 (`ParseEcnpjData`, `ParseEcpfData`, `ParseEcnpjResponsavel`) | 001.000.000 |
+| `ssl_openssl_icpbrasil.pas` | API publica: `TIcpBrasilCertificadoReader.LerDoPfx(bytes, senha): TIcpBrasilCertificado` | 001.000.000 |
+
+#### Quick start — leitura de PFX ICP-Brasil
+
+```pascal
+uses ssl_openssl_icpbrasil;
+
+var
+  LPfx: array of Byte;
+  LCert: TIcpBrasilCertificado;
+begin
+  // Carregar bytes do PFX em LPfx (TFileStream, RTTI, etc).
+  LCert := TIcpBrasilCertificadoReader.LerDoPfx(LPfx, AnsiString('senha'));
+
+  case LCert.Tipo of
+    ibtECnpj: WriteLn('e-CNPJ ', LCert.DocumentoFormatado);
+    ibtECpf:  WriteLn('e-CPF  ', LCert.DocumentoFormatado);
+  end;
+  WriteLn('Titular: ', LCert.SubjectTitular);
+  WriteLn('Vence:   ', DateToStr(LCert.NotAfter));
+end;
+```
+
+Excecoes possiveis: `EIcpBrasilSenhaInvalida`, `EIcpBrasilPfxCorrompido`,
+`EIcpBrasilNaoIcpBrasil`. Versao tolerante: `TentarLerDoPfx` (devolve
+`Tipo=ibtDesconhecido` em vez de raise para certs nao-ICP-Brasil).
+
+Documentacao adicional: [`docs-extra/icpbrasil-oids.md`](docs-extra/icpbrasil-oids.md),
+[`docs-extra/integration-guide.md`](docs-extra/integration-guide.md),
+[`docs-extra/cn-formats.md`](docs-extra/cn-formats.md),
+[`docs-extra/security-considerations.md`](docs-extra/security-considerations.md).
+
+Suite de testes: `tests-extra/ssl_openssl_icpbrasil_tests.lpr` (38 testes
+DUnitX, vetores 100% sinteticos).
+
+### Package
+
+| Item | Versão atual |
+| --- | --- |
+| `synapse.dpk` | 41.4 (47 units) |
+| `laz_synapse.lpk` | 41.4 (48 entries) |
+| `VERSION.md` / `CHANGELOG.md` | 41.4 |
 
 ### `laz_synapse.lpk` (actualizado)
 

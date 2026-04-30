@@ -9,9 +9,9 @@
         <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Description Value="Ararat Synapse: network communications suite. Fork CSL 2026-04-21 adds ssl_openssl4*.pas (OpenSSL 4.0 support) and ssl_openssl_paths.pas (SetDllDirectory helper)."/>
+    <Description Value="Ararat Synapse: network communications suite. Fork extensions add ssl_openssl4*.pas (OpenSSL 4.0 support), ssl_openssl_paths.pas (SetDllDirectory helper), ssl_openssl_x509_ext.pas (X509 PFX cross-platform reader) and ssl_openssl_icpbrasil*.pas (ICP-Brasil DOC-ICP-04 tropicalization)."/>
     <Version Major="41" Minor="1"/>
-    <Files Count="42">
+    <Files Count="48">
       <Item1>
         <Filename Value="asn1util.pas"/>
         <UnitName Value="asn1util"/>
@@ -182,6 +182,30 @@
         <Filename Value="ssl_openssl11_lib.pas"/>
         <UnitName Value="ssl_openssl11_lib"/>
       </Item42>
+      <Item43>
+        <Filename Value="ssl_openssl_x509_ext.pas"/>
+        <UnitName Value="ssl_openssl_x509_ext"/>
+      </Item43>
+      <Item44>
+        <Filename Value="ssl_openssl_icpbrasil_oids.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_oids"/>
+      </Item44>
+      <Item45>
+        <Filename Value="ssl_openssl_icpbrasil_types.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_types"/>
+      </Item45>
+      <Item46>
+        <Filename Value="ssl_openssl_icpbrasil_subject.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_subject"/>
+      </Item46>
+      <Item47>
+        <Filename Value="ssl_openssl_icpbrasil_othername.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_othername"/>
+      </Item47>
+      <Item48>
+        <Filename Value="ssl_openssl_icpbrasil.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil"/>
+      </Item48>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>

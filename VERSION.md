@@ -1,10 +1,10 @@
-# Versionamento — `Packege/synapse/` (CSL fork)
+# Versionamento — `Packege/synapse/` (fork)
 
-**Package name:** Ararat Synapse (CSL fork)
-**Package version:** 41.3
-**Data:** 2026-04-22
+**Package name:** Ararat Synapse (fork)
+**Package version:** 41.4
+**Data:** 2026-04-30
 **Upstream base:** Ararat Synapse 41.0 (copyright 1999-2023, Lukas Gebauer)
-**Fork CSL:** CSL Softwares — suporte a OpenSSL 4.0 + resolucao de DLL path + compatibilidade AD WS 2025 (LDAPS + CBT + tri-plataforma POSIX) + tipagem automatica de atributos LDAP (V41.2) + AddRaw preservando 100% bytes binarios (V41.3)
+**Fork extensions:** suporte a OpenSSL 4.0 + resolucao de DLL path + compatibilidade AD WS 2025 (LDAPS + CBT + tri-plataforma POSIX) + tipagem automatica de atributos LDAP (V41.2) + AddRaw preservando 100% bytes binarios (V41.3) + X509 PFX cross-platform reader + tropicalizacao ICP-Brasil DOC-ICP-04 (V41.4 - contribuicao CSL Tech Solutions)
 **Licenca:** BSD 3-Clause (compativel com licenca upstream Synapse)
 
 ---

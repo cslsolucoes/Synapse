@@ -27,7 +27,7 @@ package synapse;
 {$ENDIF IMPLICITBUILDING}
 {$IMPLICITBUILD ON}
 {$RUNONLY}
-{$DESCRIPTION 'Ararat Synapse 41.1 + CSL fork (ssl_openssl4* + ssl_openssl_paths) - runtime package for Delphi 12/13'}
+{$DESCRIPTION 'Ararat Synapse v41.4 + fork extensions (X509 PFX reader + ICP-Brasil tropicalization) - runtime package for Delphi 12/13'}
 
 (*
   synapse.dpk -- Runtime package Delphi para Ararat Synapse + fork CSL
@@ -107,9 +107,17 @@ contains
   ssl_openssl3      in 'ssl_openssl3.pas',
   ssl_openssl3_lib  in 'ssl_openssl3_lib.pas',
 
-  { --- Fork CSL 2026-04-21: OpenSSL 4.0 + path helper --- }
+  { --- Fork extensions 2026-04-21: OpenSSL 4.0 + path helper --- }
   ssl_openssl4      in 'ssl_openssl4.pas',
   ssl_openssl4_lib  in 'ssl_openssl4_lib.pas',
-  ssl_openssl_paths in 'ssl_openssl_paths.pas';
+  ssl_openssl_paths in 'ssl_openssl_paths.pas',
+
+  { --- Fork extensions 2026-04-30 v41.4: X509 PFX reader + ICP-Brasil --- }
+  ssl_openssl_x509_ext             in 'ssl_openssl_x509_ext.pas',
+  ssl_openssl_icpbrasil_oids       in 'ssl_openssl_icpbrasil_oids.pas',
+  ssl_openssl_icpbrasil_types      in 'ssl_openssl_icpbrasil_types.pas',
+  ssl_openssl_icpbrasil_subject    in 'ssl_openssl_icpbrasil_subject.pas',
+  ssl_openssl_icpbrasil_othername  in 'ssl_openssl_icpbrasil_othername.pas',
+  ssl_openssl_icpbrasil            in 'ssl_openssl_icpbrasil.pas';
 
 end.

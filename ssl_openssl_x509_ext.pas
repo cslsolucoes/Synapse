@@ -46,18 +46,22 @@ interface
 uses
   SysUtils, Classes,
   ssl_openssl3_lib,
-  {$IFDEF WINDOWS}Windows{$ELSE}DynLibs{$ENDIF};
+  {$IFDEF MSWINDOWS}Windows{$ELSE}DynLibs{$ENDIF};
 
 type
   {$IFNDEF FPC}
   TLibHandle = THandle;
   {$ENDIF}
 
+  { Bytes brutos extraidos de ASN1_OCTET_STRING. Tipo nomeado para evitar
+    incompatibilidade com array of Byte local em atribuicoes. }
+  TX509RawBytes = array of Byte;
+
   { Single extracted X509 extension - OID em texto ("2.16.76.1.3.7") + bytes
     crus do ASN1_OCTET_STRING (consumidor decide como parsear). }
   TX509Extension = record
     OID:  AnsiString;
-    Data: array of Byte;
+    Data: TX509RawBytes;
   end;
 
   TX509ExtensionArray = array of TX509Extension;
@@ -110,7 +114,7 @@ uses
   ssl_openssl_paths;
 
 const
-  {$IFDEF WINDOWS}
+  {$IFDEF MSWINDOWS}
   LIBCRYPTO_NAME = 'libcrypto-3-x64.dll';
   {$ELSE}
     {$IFDEF DARWIN}
@@ -372,7 +376,7 @@ var
   LStr:    SslPtr;
   LBufOID: array[0..127] of AnsiChar;
   LDataPtr: PByte;
-  LBytes:  array of Byte;
+  LBytes:  TX509RawBytes;
 begin
   SetLength(Result, 0);
   if not Init or not Assigned(cert) then Exit;

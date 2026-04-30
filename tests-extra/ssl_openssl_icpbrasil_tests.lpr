@@ -33,7 +33,9 @@ uses
   ssl_openssl_icpbrasil_oids        in '..\ssl_openssl_icpbrasil_oids.pas',
   ssl_openssl_icpbrasil_types       in '..\ssl_openssl_icpbrasil_types.pas',
   ssl_openssl_icpbrasil_subject     in '..\ssl_openssl_icpbrasil_subject.pas',
-  ssl_openssl_icpbrasil_othername   in '..\ssl_openssl_icpbrasil_othername.pas';
+  ssl_openssl_icpbrasil_othername   in '..\ssl_openssl_icpbrasil_othername.pas',
+  ssl_openssl_icpbrasil             in '..\ssl_openssl_icpbrasil.pas',
+  ssl_openssl_x509_ext              in '..\ssl_openssl_x509_ext.pas';
 
 type
   [TestFixture]

@@ -78,3 +78,6 @@ modules/
 *.delphilsp.json
 # Workspace-local (instancia concreta deste clone)
 .workspace/
+
+tests-extra/Compiled/
+tests-extra/fixtures/synthetic-pfx/

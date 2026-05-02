@@ -1,7 +1,34 @@
-# Changelog - Ararat Synapse (fork)
+# Changelog - Ararat Synapse (fork CSL)
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versionamento: ver `VERSION.md`.
+
+## [Unreleased] - 2026-05-02
+
+### Changed
+
+- **chore(headers): unificacao do rotulo `Ararat Synapse (CSL fork)` em todas as 17 units CSL ICP-Brasil** + companion `ssl_openssl_x509_ext` — alinhado com `ssl_openssl_paths.pas` e `ssl_openssl4.pas` (referencia canonica). Antes, units 100% CSL (de S1 a S14) estavam rotuladas como `Ararat Synapse` (rotulo upstream Gebauer), o que era incorreto.
+  Arquivos: `ssl_openssl_x509_ext.pas`, `ssl_openssl_icpbrasil.pas`, `_oids.pas`, `_othername.pas`, `_subject.pas`, `_types.pas`, `ssl_openssl_chain_verify.pas`, `_icpbrasil_policy.pas`, `_icpbrasil_crl.pas`, `_ocsp.pas`, `_extparsers.pas`, `_san.pas`, `_pkcs7.pas`, `_tsp.pas`, `_winstore.pas`, `_pkcs11.pas`, `_fiscal.pas`.
+- **bump retroativo `ssl_openssl_x509_ext.pas` `001.001.000` → `001.005.000`** com History CSL completo documentando contribuicoes:
+  S1 (`001.000.000`) — companion baseline cross-platform.
+  S8 (`001.001.000`) — Issuer.O=, Serial, Thumbprint SHA1/256, DERBase64.
+  S9 (`001.002.000`) — bindings `X509_STORE_*`, `X509_verify_cert`.
+  S10 (`001.003.000`) — bindings CRL + OCSP.
+  S12 (`001.004.000`) — bindings PKCS7/CMS + RFC 3161 TSP.
+  S13/14 (`001.005.000`) — refinamentos para WinStore + PKCS11.
+
+### Documentation
+
+- **VERSION.md** secao Inventario expandida com **17 units ICP-Brasil** listadas individualmente (versoes + sprint + papel); contagem de units actualizada para `67 Pascal + 5 include + 2 packages` (50 upstream/CSL-patched + 17 CSL ICP-Brasil).
+- **VERSION.md** secao Roadmap reorganizada em "Entregue" (V41.4 → V42.1, todas as 7 sprints S8-S14) + "Futuro nao agendado" (V42.2/V42.3/V43.0 + PR upstream ACBr opcional) + "Roadmap historico" (V41.0-V41.3 pre-S8).
+- **VERSION.md** Packages count corrigido: `60 files (35 upstream + 25 CSL)` → `57 units (.pas) + 2 includes` (alinhado com contagem real).
+- **VERSION.md** data Generated `2026-04-22` → `2026-05-02`; scope path actualizado para `src/modules/Synapse/`.
+
+### Verificacao
+
+- Build dcc64 Delphi 12 (23.0): 58.743 linhas, 0 erros (so warnings expectados — `W1035` em wrappers `GetProcAddress`).
+- Suite DUnitX: 38/38 testes verdes, 0 leaks.
+- Pacotes `laz_synapse.lpk` ↔ `synapse.dpk` simetricos sem alteracao (57 .pas em ambos).
 
 ## [42.1] - 2026-05-01
 

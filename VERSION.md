@@ -24,7 +24,9 @@ Este package segue **duas dimensoes** de versao:
 
 ---
 
-## Inventario de units (50 Pascal + 5 include + 2 packages)
+## Inventario de units (67 Pascal + 5 include + 2 packages)
+
+> 50 upstream/CSL-patched + 17 CSL ICP-Brasil (V41.4 → V42.1)
 
 ### Core — Sockets e LDAP
 
@@ -70,6 +72,32 @@ Este package segue **duas dimensoes** de versao:
 | `ssl_sbb16.pas` | SSL plugin SBB 16 | Upstream | Upstream | EldoS SecureBlackbox 16-bit |
 | `ssl_streamsec.pas` | SSL plugin StreamSec | Upstream | Upstream | StreamSec TLS Pro (comercial) |
 | `Crypt32.pas` | Crypt32 imports | Upstream | Upstream | Imports de `crypt32.dll` para CAPI (usado por `ssl_openssl_capi`) |
+
+### ICP-Brasil — Leitor PFX + chain + revogacao + signing + hardware (CSL fork V41.4 → V42.1)
+
+> 17 units 100% novas CSL — biblioteca completa para certificados ICP-Brasil cross-platform.
+
+| Unit | Tipo | Versao | Sprint | Papel |
+|---|---|---|---|---|
+| **`ssl_openssl_x509_ext.pas`** | X509 companion | **001.005.000** | S1+S8+S9+S10+S12+S13/14 | Bindings auto-contidos: NotBefore/After, X509GetAllExtensions, ASN1_TIME→TDateTime, PKCS12ReadFromBytes, Issuer.O=, Serial, Thumbprint SHA1/256, DERBase64, X509_STORE_*, X509_verify_cert, CRL/OCSP/PKCS7/TSP. Cross-platform via DynLibs/Windows. |
+| **`ssl_openssl_icpbrasil.pas`** | Reader publico | **001.004.000** | S1+S8+S9+S10+S11 | `TIcpBrasilCertificadoReader.LerDoPfx` (orquestracao); overload com `TLerDoPfxOptions` para chain/policy/revogacao opcional. |
+| **`ssl_openssl_icpbrasil_oids.pas`** | OIDs DOC-ICP-04 | **001.001.000** | S1+S8 | 9 OIDs + `IsOidIcpBrasilPJ`/`PF` (`.1`-`.8`, `.10` OAB, `.2` PJ legacy, `.3` CNPJ legacy, `.7` CNPJ moderno). |
+| **`ssl_openssl_icpbrasil_othername.pas`** | Parsers ASN.1 | **001.001.000** | S1+S8 | `ParseEcpfData`/`Ecnpj`/`Responsavel`/`TituloEleitor`/`PisOuCaepf`/`RgSeparado` + `StripASN1OctetWrapper`. |
+| **`ssl_openssl_icpbrasil_subject.pas`** | Subject parser | **001.001.000** | S1+S8 | `ParseSubjectCN`, mod-11 `IsCpfValido`/`IsCnpjValido`, `FormatarCpf`/`Cnpj`, **`MatchCnpjRaiz`** (8 digitos para validacao fiscal). |
+| **`ssl_openssl_icpbrasil_types.pas`** | Tipos publicos | **001.004.000** | S1+S8+S9+S10+S11 | Record `TIcpBrasilCertificado` (~50 campos: parsing + chain + revogacao + SAN/KU/EKU); excecoes; helpers `EstaValidoEm`/`DiasParaExpirar`. |
+| **`ssl_openssl_chain_verify.pas`** | Chain validator | **001.001.000** | S9+S10 | `TX509ChainVerifier` offline; carrega bundle AC-Raiz; bindings X509_STORE_CTX_*; metodos CRL `LoadCrlFromBytes`/`IsRevogadoNaCRL`. |
+| **`ssl_openssl_icpbrasil_policy.pas`** | Policy parser | **001.000.000** | S9 | Parser ext `2.5.29.32` via `asn1util.ASNItem`; reconhece OIDs ITI `2.16.76.1.2.*` → `AC-Raiz V1..V10`. |
+| **`ssl_openssl_icpbrasil_crl.pas`** | CRL client | **001.000.000** | S10 | `TIcpBrasilCrlClient` cache filesystem TTL `nextUpdate`; download via `httpsend`. |
+| **`ssl_openssl_icpbrasil_ocsp.pas`** | OCSP client | **001.000.000** | S10 | `TIcpBrasilOcspClient` POST via `httpsend`; bindings OCSP_REQUEST/RESPONSE/basic_verify. |
+| **`ssl_openssl_icpbrasil_extparsers.pas`** | AIA/CDP parsers | **001.000.000** | S10 | Extracao URLs de extensoes `1.3.6.1.5.5.7.1.1` (AIA) e `2.5.29.31` (CDP). |
+| **`ssl_openssl_icpbrasil_san.pas`** | SAN/KU/EKU/OAB | **001.000.000** | S11 | Parsers `2.5.29.17` (rfc822/dNS/IP/URI), `2.5.29.15` (Key Usage), `2.5.29.37` (EKU), `2.16.76.1.3.10` (OAB). |
+| **`ssl_openssl_icpbrasil_pkcs7.pas`** | PKCS#7/CAdES | **001.000.000** | S12 | `TPkcs7Signer` CAdES-BES detached/attached; bindings PKCS7_sign/verify/i2d/d2i. |
+| **`ssl_openssl_icpbrasil_tsp.pas`** | RFC 3161 TSP | **001.000.000** | S12 | `TTspClient` time-stamping via `httpsend` POST `application/timestamp-query`. |
+| **`ssl_openssl_icpbrasil_winstore.pas`** | Windows Store | **001.000.000** | S13a | `TWinCertStore` (Win-only) `OpenStore`/`Enumerate`/`FindByThumbprint`; **`IsCertificadoEmHardware`** (LGPL adaptado de ACBr). |
+| **`ssl_openssl_icpbrasil_pkcs11.pas`** | PKCS#11 (Cryptoki v3) | **001.000.000** | S13b | `TPkcs11Loader` cross-platform; `LoadModule`/`AutoDetectAndLoad` (SoftHSM2/eToken/SafeNet); `OpenSession`/`EnumerateCertificates`. |
+| **`ssl_openssl_icpbrasil_fiscal.pas`** | Fiscal helpers | **001.000.000** | S14 | `IsCertificadoNFe`/`ESocial`/`Serpro`/`Sefaz(AUf)`/`EFDReinf` + `HasExtKeyUsage`. |
+
+**Convencao de header (canonica):** `| Project : Ararat Synapse (CSL fork) | AAA.BBB.CCC |` (alinhado com `ssl_openssl_paths.pas` e `ssl_openssl4.pas`).
 
 ### Protocolos — Aplicacao
 
@@ -122,8 +150,8 @@ Este package segue **duas dimensoes** de versao:
 
 | Package | Versao | Tipo | Scope |
 |---|---|---|---|
-| `laz_synapse.lpk` | 42.1 | Lazarus runtime | 60 units (35 upstream + 25 CSL) |
-| `synapse.dpk` | 42.1 | Delphi 12/13 runtime | Simetrico ao `.lpk` |
+| `laz_synapse.lpk` | 42.1 | Lazarus runtime | 57 units (.pas) + 2 includes — simetrico ao .dpk |
+| `synapse.dpk` | 42.1 | Delphi 12/13 runtime | 57 units (.pas) — simetrico ao .lpk |
 
 ---
 
@@ -461,13 +489,31 @@ Snapshot de referencia do upstream em `Packege/synapse.v41/` (nao entra em build
 
 ## Roadmap
 
-- **V41.3.1 / ADORM V1.7.3** — Fix do guard `System.SyncObjs`/`SyncObjs` em `sswin32.inc` + `blcksock.pas` para destravar FPC Win32/Win64 do ORM completo; helper publico `DecodeUAC(Int64): string` em `ldapsend.pas`; `RawToFileTime` aceitar Int64 binario OCTET STRING.
-- **V41.4** — Port `TSslRootCAStore` (ICS) para uso de certstore centralizado (ver `.cursor/plans/synapse-csl-ssl-rootcastore_V1.0.plan.md`).
-- **V41.5** — HTTP modernization (OAuth Bearer, CookieJar, JSON helpers — ver `.cursor/plans/synapse-csl-http-modernization_V1.0.plan.md`).
-- **V41.6** — SMTP modernization (XOAUTH2 + STARTTLS auto — ver `.cursor/plans/synapse-csl-smtp-modernization_V1.0.plan.md`).
-- **V41.7** — IMAP modernization (IDLE + UIDPLUS + SearchEx — ver `.cursor/plans/synapse-csl-imap-modernization_V1.0.plan.md`).
-- **V41.8 / ADORM V2.0.0** — Port real `libgssapi_krb5` para POSIX (etapas E1-E5 detalhadas em [../../Documentation/Roadmap/Roadmap_ActiveDirectoryORM_V2.0.md](../../Documentation/Roadmap/Roadmap_ActiveDirectoryORM_V2.0.md)).
-- **V42.0** — Sincronizacao (opcional) do patch CSL para `projects/package/synapse/` (decisao futura).
+### Entregue (V41.4 → V42.1, 2026-04-30 a 2026-05-02)
+
+- ✅ **V41.4** — Leitor PFX X509 cross-platform + tropicalizacao ICP-Brasil DOC-ICP-04 (S1-S6, 6 units)
+- ✅ **V41.5** — S8 quick wins: OID `.3` legacy fallback + record expandido (NumeroSerie/Thumbprint/Certificadora) + helpers fiscais (MatchCnpjRaiz, EstaValidoEm)
+- ✅ **V41.6** — S9 chain validation programatica offline + Certificate Policies parser + bundle AC-Raiz ICP-Brasil v1..v10
+- ✅ **V41.7** — S10 revogacao programatica completa: CRL + OCSP + AIA + CDP
+- ✅ **V41.8** — S11 subject enrichment: SAN/KU/EKU/OAB + conformidade DOC-ICP-04 v8.x
+- ✅ **V41.9** — S12 PKCS#7/CAdES-BES signer + RFC 3161 TSP client (Synapse standalone para emissao fiscal)
+- ✅ **V42.0** — S13a Windows Store + A3 detection (LGPL adaptado de ACBr) + S13b PKCS#11 cross-platform Cryptoki v3
+- ✅ **V42.1** — S14 fiscal helpers (NFe/eSocial/Serpro/Sefaz/EFD-Reinf) + cross-platform fixes FPC Windows
+- ✅ **chore (post-V42.1)** — unificacao do rotulo de header `Ararat Synapse (CSL fork)` em todas as 17 units ICP-Brasil + bump retroativo `ssl_openssl_x509_ext.pas` (001.001 → 001.005) com History CSL completo
+
+### Futuro (nao agendado)
+
+- **V42.2 (potencial)** — Refresh automatizado do bundle AC-Raiz ITI via CI mensal (script `bundles/AC-Raiz-ICP-Brasil-fetch.ps1` existe, falta hook CI)
+- **V42.3 (potencial)** — Tests com tokens A3 fisicos reais (eToken / SafeNet 5110); actualmente cobertos so em SoftHSM2
+- **V43.0 / ADORM V2.0.0** — Port real `libgssapi_krb5` para POSIX (etapas E1-E5 detalhadas em [../../Documentation/Roadmap/Roadmap_ActiveDirectoryORM_V2.0.md](../../Documentation/Roadmap/Roadmap_ActiveDirectoryORM_V2.0.md))
+- **PR upstream ACBr (opcional)** — oferecer ao projecto ACBr os dois ganhos de seguranca/qualidade detectados durante a varredura: (a) `SecureZeroMemory` no PIN cache do `ACBrDFeWinCrypt`; (b) parsing OID-string em vez de busca binaria fragil em `ACBrOpenSSLUtils.GetCertExt`
+
+### Roadmap historico (entregas pre-S8 — concluidas)
+
+- V41.0 — baseline upstream Gebauer 1999-2023
+- V41.1 — OpenSSL 4.0 plugin + DLL path helper + tri-plataforma POSIX (V1.7.0)
+- V41.2 — tipagem automatica de atributos LDAP + fix EEncodingError (V1.7.1)
+- V41.3 — AddRaw 100% bytes binarios + Put defensivo (V1.7.2)
 
 ---
 
@@ -484,6 +530,6 @@ Snapshot de referencia do upstream em `Packege/synapse.v41/` (nao entra em build
 
 ---
 
-**Gerado:** 2026-04-22
-**Autor:** CSL Softwares
-**Scope:** `Packege/synapse/` (fork CSL)
+**Gerado:** 2026-05-02
+**Autor:** CSL Softwares (CSL Tech Solutions)
+**Scope:** `src/modules/Synapse/` (fork CSL distribuido publicamente em <https://github.com/cslsolucoes/Synapse>)

@@ -1,5 +1,5 @@
 {==============================================================================|
-| Project : Ararat Synapse                                       | 001.001.000 |
+| Project : Ararat Synapse (CSL fork)                            | 001.005.000 |
 |==============================================================================|
 | Content: X509 extensions companion unit (cross-platform PFX/X509 reader)     |
 |==============================================================================|
@@ -38,8 +38,30 @@
 |==============================================================================|
 | Contributor(s):                                                              |
 |==============================================================================|
-| History: see HISTORY.HTM from distribution package                           |
-|          (Found at URL: http://www.ararat.cz/synapse/)                       |
+| History: CSL fork history (this file):                                       |
+|   001.000.000 (2026-04-22): S1 / V41.4 — Criacao. Companion cross-platform   |
+|                             para ssl_openssl3_lib: NotBefore/After accessor, |
+|                             X509GetAllExtensions, ASN1_TIME -> TDateTime,    |
+|                             PKCS12ReadFromBytes, X509GetSubjectCN/IssuerCN.  |
+|   001.001.000 (2026-05-01): S8 / V41.5 — Helpers: NID_organizationName=17,   |
+|                             X509GetIssuerO/SubjectO, X509GetSerialNumberHex, |
+|                             X509GetThumbprintSHA1/256, X509GetDERBase64,     |
+|                             X509GetVersion.                                  |
+|   001.002.000 (2026-05-01): S9 / V41.6 — Bindings X509_STORE_*, X509_STORE_  |
+|                             CTX_new/init/free, X509_verify_cert,             |
+|                             X509_STORE_CTX_get_error, X509_verify_cert_      |
+|                             error_string para chain validation programatica. |
+|   001.003.000 (2026-05-01): S10 / V41.7 — Bindings CRL (d2i_X509_CRL,        |
+|                             X509_CRL_verify, X509_CRL_get0_by_serial) e      |
+|                             OCSP (OCSP_REQUEST_*, OCSP_basic_verify,         |
+|                             OCSP_check_validity).                            |
+|   001.004.000 (2026-05-01): S12 / V41.9 — Bindings PKCS7/CMS (PKCS7_sign,    |
+|                             PKCS7_verify, i2d_PKCS7, d2i_PKCS7) + RFC 3161   |
+|                             TSP (TS_REQ_new, TS_RESP_verify_response).       |
+|   001.005.000 (2026-05-01): S13/S14 / V42.0-V42.1 — Refinamentos finais para |
+|                             integracao com ssl_openssl_icpbrasil_winstore    |
+|                             (Windows Store load) e ssl_openssl_icpbrasil_    |
+|                             pkcs11 (Cryptoki v3 cross-platform).             |
 |==============================================================================}
 
 {:@abstract(X509 extensions companion unit - cross-platform via DynLibs/Windows)

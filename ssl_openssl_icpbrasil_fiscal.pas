@@ -1,5 +1,5 @@
 {==============================================================================|
-| Project : Ararat Synapse                                       | 001.000.000 |
+| Project : Ararat Synapse (CSL fork)                            | 001.000.000 |
 |==============================================================================|
 | Content: Fiscal helpers for ICP-Brasil — NFe/eSocial/Serpro/Sefaz/EFD-Reinf  |
 |          (S14 — v42.1)                                                       |

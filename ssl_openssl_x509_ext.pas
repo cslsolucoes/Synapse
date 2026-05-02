@@ -1,5 +1,5 @@
 {==============================================================================|
-| Project : Ararat Synapse                                       | 001.000.000 |
+| Project : Ararat Synapse                                       | 001.001.000 |
 |==============================================================================|
 | Content: X509 extensions companion unit (cross-platform PFX/X509 reader)     |
 |==============================================================================|
@@ -128,12 +128,41 @@ type
                                        out APrivateKey: SslPtr;
                                        out ACertificate: PX509;
                                        out ACaChain: SslPtr): Boolean;
+
+    { Le Subject O (organizationName, NID=17). '' se ausente. }
+    class function X509GetSubjectO(cert: PX509): AnsiString;
+
+    { Le Issuer O (organizationName, NID=17). '' se ausente. Util para
+      identificar a Certificadora (AC) emissora em ICP-Brasil. }
+    class function X509GetIssuerO(cert: PX509): AnsiString;
+
+    { Numero de serie em decimal (string). '' se cert nil ou erro. }
+    class function X509GetSerialNumberDec(cert: PX509): string;
+
+    { Numero de serie em hexadecimal uppercase, sem separadores. '' em erro. }
+    class function X509GetSerialNumberHex(cert: PX509): string;
+
+    { Thumbprint SHA1 do DER em hexadecimal uppercase. '' em erro. }
+    class function X509GetThumbprintSHA1(cert: PX509): string;
+
+    { Thumbprint SHA256 do DER em hexadecimal uppercase. '' em erro. }
+    class function X509GetThumbprintSHA256(cert: PX509): string;
+
+    { Cert em DER (binario) bytes. Vazio em erro. }
+    class function X509GetDERBytes(cert: PX509): TX509RawBytes;
+
+    { Cert em DER codificado em Base64 (sem newlines, sem PEM headers). }
+    class function X509GetDERBase64(cert: PX509): string;
+
+    { Versao X509 (X509_get_version retorna long: 0=v1, 1=v2, 2=v3). }
+    class function X509GetVersion(cert: PX509): Integer;
   end;
 
 implementation
 
 uses
-  ssl_openssl_paths;
+  ssl_openssl_paths,
+  synacode;
 
 const
   {$IFDEF MSWINDOWS}
@@ -146,7 +175,8 @@ const
     {$ENDIF}
   {$ENDIF}
 
-  NID_commonName = 13;
+  NID_commonName       = 13;
+  NID_organizationName = 17;
 
 type
   TX509GetNotBefore_FN = function(x: PX509): SslPtr; cdecl;
@@ -165,6 +195,24 @@ type
   TPkcs12Free_FN = procedure(p12: SslPtr); cdecl;
   TBioNewMemBuf_FN = function(buf: Pointer; len: Integer): PBIO; cdecl;
   TBioFreeAll_FN   = procedure(b: PBIO); cdecl;
+  TX509GetSerialNumber_FN = function(x: PX509): SslPtr; cdecl;
+  { OpenSSL X509_get_version returns C long. On Windows even x64 long is 32-bit
+    (LLP64); on Linux/macOS x64 long is 64-bit (LP64). X509 version values are
+    0..2 in practice so reading low 32 bits via NativeInt is sufficient and
+    works on both ABIs. }
+  TX509GetVersion_FN      = function(x: PX509): NativeInt; cdecl;
+  TX509Digest_FN          = function(data: PX509; md_type: SslPtr;
+                                     md: PByte; var md_len: Cardinal): Integer; cdecl;
+  TEvpGetDigestByName_FN  = function(name: PAnsiChar): SslPtr; cdecl;
+  TI2dX509_FN             = function(x: PX509; out_buf: PPointer): Integer; cdecl;
+  TI2dAsn1Integer_FN      = function(a: SslPtr; out_buf: PPointer): Integer; cdecl;
+  TBnBin2Bn_FN            = function(s: PByte; len: Integer; ret: SslPtr): SslPtr; cdecl;
+  TBnBn2Dec_FN            = function(a: SslPtr): PAnsiChar; cdecl;
+  TBnBn2Hex_FN            = function(a: SslPtr): PAnsiChar; cdecl;
+  TBnFree_FN              = procedure(a: SslPtr); cdecl;
+  TCryptoFree_FN          = procedure(addr: Pointer; file_: PAnsiChar; line: Integer); cdecl;
+  TAsn1IntegerToBn_FN     = function(ai: SslPtr; bn: SslPtr): SslPtr; cdecl;
+  TEvpMdNullary_FN        = function: SslPtr; cdecl;
 
 var
   FInitialized: Boolean = False;
@@ -186,6 +234,17 @@ var
   _PKCS12Free:              TPkcs12Free_FN = nil;
   _BioNewMemBuf:            TBioNewMemBuf_FN = nil;
   _BioFreeAll:              TBioFreeAll_FN = nil;
+  _X509GetSerialNumber:     TX509GetSerialNumber_FN = nil;
+  _X509GetVersion:          TX509GetVersion_FN = nil;
+  _X509Digest:              TX509Digest_FN = nil;
+  _EvpSha1:                 TEvpMdNullary_FN = nil;
+  _EvpSha256:               TEvpMdNullary_FN = nil;
+  _I2dX509:                 TI2dX509_FN = nil;
+  _Asn1IntegerToBn:         TAsn1IntegerToBn_FN = nil;
+  _BnBn2Dec:                TBnBn2Dec_FN = nil;
+  _BnBn2Hex:                TBnBn2Hex_FN = nil;
+  _BnFree:                  TBnFree_FN = nil;
+  _CryptoFree:              TCryptoFree_FN = nil;
 
 { Cross-platform LoadLibrary wrapper. }
 function CslLoadLib(const AName: string): TLibHandle;
@@ -200,10 +259,10 @@ end;
 { Cross-platform GetProcAddress wrapper. }
 function CslGetProc(AHandle: TLibHandle; const AName: AnsiString): Pointer;
 begin
-  {$IFDEF FPC}
-  Result := DynLibs.GetProcAddress(AHandle, AName);
-  {$ELSE}
+  {$IFDEF MSWINDOWS}
   Result := Windows.GetProcAddress(AHandle, PAnsiChar(AName));
+  {$ELSE}
+  Result := DynLibs.GetProcAddress(AHandle, AName);
   {$ENDIF}
 end;
 
@@ -264,6 +323,21 @@ begin
 
   _BioNewMemBuf := TBioNewMemBuf_FN(CslGetProc(FLibHandle, 'BIO_new_mem_buf'));
   _BioFreeAll   := TBioFreeAll_FN(CslGetProc(FLibHandle, 'BIO_free_all'));
+
+  { Optional new bindings — only fail Init if essentials missing.
+    These power Serial/Thumbprint/DER/Version helpers but are not
+    required for basic LerDoPfx flow. }
+  _X509GetSerialNumber := TX509GetSerialNumber_FN(CslGetProc(FLibHandle, 'X509_get_serialNumber'));
+  _X509GetVersion      := TX509GetVersion_FN(CslGetProc(FLibHandle, 'X509_get_version'));
+  _X509Digest          := TX509Digest_FN(CslGetProc(FLibHandle, 'X509_digest'));
+  _EvpSha1             := TEvpMdNullary_FN(CslGetProc(FLibHandle, 'EVP_sha1'));
+  _EvpSha256           := TEvpMdNullary_FN(CslGetProc(FLibHandle, 'EVP_sha256'));
+  _I2dX509             := TI2dX509_FN(CslGetProc(FLibHandle, 'i2d_X509'));
+  _Asn1IntegerToBn     := TAsn1IntegerToBn_FN(CslGetProc(FLibHandle, 'ASN1_INTEGER_to_BN'));
+  _BnBn2Dec            := TBnBn2Dec_FN(CslGetProc(FLibHandle, 'BN_bn2dec'));
+  _BnBn2Hex            := TBnBn2Hex_FN(CslGetProc(FLibHandle, 'BN_bn2hex'));
+  _BnFree              := TBnFree_FN(CslGetProc(FLibHandle, 'BN_free'));
+  _CryptoFree          := TCryptoFree_FN(CslGetProc(FLibHandle, 'CRYPTO_free'));
 
   FInitOK :=
     Assigned(_X509GetNotBefore) and Assigned(_X509GetNotAfter) and
@@ -437,6 +511,192 @@ begin
       end;
     end;
   end;
+end;
+
+function _X509GetNameTextByNID(cert: PX509; AIsIssuer: Boolean;
+  ANID: Integer): AnsiString;
+var
+  LName: PX509_NAME;
+  LBuf:  array[0..511] of AnsiChar;
+  LLen:  Integer;
+begin
+  Result := '';
+  if not Assigned(cert) then Exit;
+  if not Assigned(_X509NameGetTextByNID) then Exit;
+
+  if AIsIssuer then
+    LName := X509GetIssuerName(cert)
+  else
+    LName := X509GetSubjectName(cert);
+  if not Assigned(LName) then Exit;
+
+  FillChar(LBuf, SizeOf(LBuf), 0);
+  LLen := _X509NameGetTextByNID(LName, ANID, @LBuf[0], SizeOf(LBuf));
+  if LLen > 0 then
+    SetString(Result, PAnsiChar(@LBuf[0]), LLen);
+end;
+
+class function TX509Ext.X509GetSubjectO(cert: PX509): AnsiString;
+begin
+  if not Init then
+    Exit('');
+  Result := _X509GetNameTextByNID(cert, False, NID_organizationName);
+end;
+
+class function TX509Ext.X509GetIssuerO(cert: PX509): AnsiString;
+begin
+  if not Init then
+    Exit('');
+  Result := _X509GetNameTextByNID(cert, True, NID_organizationName);
+end;
+
+function _SerialToBN(cert: PX509): SslPtr;
+var
+  LSerial: SslPtr;
+begin
+  Result := nil;
+  if not Assigned(_X509GetSerialNumber) or not Assigned(_Asn1IntegerToBn) then
+    Exit;
+  LSerial := _X509GetSerialNumber(cert);
+  if not Assigned(LSerial) then Exit;
+  Result := _Asn1IntegerToBn(LSerial, nil);
+end;
+
+function _CopyAndFreeOpenSSLString(P: PAnsiChar): string;
+begin
+  Result := '';
+  if P = nil then Exit;
+  Result := string(AnsiString(P));
+  if Assigned(_CryptoFree) then
+    _CryptoFree(P, nil, 0);
+end;
+
+class function TX509Ext.X509GetSerialNumberDec(cert: PX509): string;
+var
+  LBN: SslPtr;
+  LStr: PAnsiChar;
+begin
+  Result := '';
+  if not Init or not Assigned(cert) then Exit;
+  if not Assigned(_BnBn2Dec) or not Assigned(_BnFree) then Exit;
+
+  LBN := _SerialToBN(cert);
+  if not Assigned(LBN) then Exit;
+  try
+    LStr := _BnBn2Dec(LBN);
+    Result := _CopyAndFreeOpenSSLString(LStr);
+  finally
+    _BnFree(LBN);
+  end;
+end;
+
+class function TX509Ext.X509GetSerialNumberHex(cert: PX509): string;
+var
+  LBN: SslPtr;
+  LStr: PAnsiChar;
+begin
+  Result := '';
+  if not Init or not Assigned(cert) then Exit;
+  if not Assigned(_BnBn2Hex) or not Assigned(_BnFree) then Exit;
+
+  LBN := _SerialToBN(cert);
+  if not Assigned(LBN) then Exit;
+  try
+    LStr := _BnBn2Hex(LBN);
+    Result := UpperCase(_CopyAndFreeOpenSSLString(LStr));
+  finally
+    _BnFree(LBN);
+  end;
+end;
+
+function _BytesToHexUpper(const ABytes: array of Byte; ALen: Integer): string;
+const
+  HEXCHARS: array[0..15] of Char =
+    ('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F');
+var
+  I: Integer;
+  S: string;
+begin
+  SetLength(S, ALen * 2);
+  for I := 0 to ALen - 1 do
+  begin
+    S[I * 2 + 1] := HEXCHARS[(ABytes[I] shr 4) and $F];
+    S[I * 2 + 2] := HEXCHARS[ABytes[I] and $F];
+  end;
+  Result := S;
+end;
+
+function _DigestX509(cert: PX509; AMd: SslPtr): string;
+var
+  LBuf: array[0..63] of Byte;
+  LLen: Cardinal;
+begin
+  Result := '';
+  if not Assigned(_X509Digest) or not Assigned(AMd) or not Assigned(cert) then
+    Exit;
+  FillChar(LBuf, SizeOf(LBuf), 0);
+  LLen := SizeOf(LBuf);
+  if _X509Digest(cert, AMd, @LBuf[0], LLen) <> 1 then Exit;
+  if LLen = 0 then Exit;
+  Result := _BytesToHexUpper(LBuf, Integer(LLen));
+end;
+
+class function TX509Ext.X509GetThumbprintSHA1(cert: PX509): string;
+begin
+  Result := '';
+  if not Init then Exit;
+  if not Assigned(_EvpSha1) then Exit;
+  Result := _DigestX509(cert, _EvpSha1());
+end;
+
+class function TX509Ext.X509GetThumbprintSHA256(cert: PX509): string;
+begin
+  Result := '';
+  if not Init then Exit;
+  if not Assigned(_EvpSha256) then Exit;
+  Result := _DigestX509(cert, _EvpSha256());
+end;
+
+class function TX509Ext.X509GetDERBytes(cert: PX509): TX509RawBytes;
+var
+  LLen: Integer;
+  LBuf: PByte;
+  LBufStart: PByte;
+begin
+  SetLength(Result, 0);
+  if not Init or not Assigned(cert) then Exit;
+  if not Assigned(_I2dX509) or not Assigned(_CryptoFree) then Exit;
+
+  LBuf := nil;
+  LLen := _I2dX509(cert, @LBuf);
+  if (LLen <= 0) or not Assigned(LBuf) then Exit;
+  LBufStart := LBuf;
+  try
+    SetLength(Result, LLen);
+    Move(LBufStart^, Result[0], LLen);
+  finally
+    _CryptoFree(LBufStart, nil, 0);
+  end;
+end;
+
+class function TX509Ext.X509GetDERBase64(cert: PX509): string;
+var
+  LBytes: TX509RawBytes;
+  LRaw: AnsiString;
+begin
+  Result := '';
+  LBytes := X509GetDERBytes(cert);
+  if Length(LBytes) = 0 then Exit;
+  SetString(LRaw, PAnsiChar(@LBytes[0]), Length(LBytes));
+  Result := string(synacode.EncodeBase64(LRaw));
+end;
+
+class function TX509Ext.X509GetVersion(cert: PX509): Integer;
+begin
+  Result := 0;
+  if not Init or not Assigned(cert) then Exit;
+  if not Assigned(_X509GetVersion) then Exit;
+  Result := Integer(_X509GetVersion(cert));
 end;
 
 class function TX509Ext.PKCS12ReadFromBytes(const ABytes: array of Byte;

@@ -9,9 +9,9 @@
         <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
       </SearchPaths>
     </CompilerOptions>
-    <Description Value="Ararat Synapse: network communications suite. Fork extensions add ssl_openssl4*.pas (OpenSSL 4.0 support), ssl_openssl_paths.pas (SetDllDirectory helper), ssl_openssl_x509_ext.pas (X509 PFX cross-platform reader) and ssl_openssl_icpbrasil*.pas (ICP-Brasil DOC-ICP-04 tropicalization)."/>
-    <Version Major="41" Minor="1"/>
-    <Files Count="48">
+    <Description Value="Ararat Synapse: network communications suite. Fork extensions add ssl_openssl4*.pas (OpenSSL 4.0 support), ssl_openssl_paths.pas (SetDllDirectory helper), ssl_openssl_x509_ext.pas (X509 PFX cross-platform reader, with thumbprint/serial/DER helpers in v41.5), ssl_openssl_icpbrasil*.pas (ICP-Brasil DOC-ICP-04 tropicalization with S8 quick wins: legacy OID .3 fallback, expanded record, fiscal helpers MatchCnpjRaiz/EstaValidoEm), ssl_openssl_chain_verify.pas (S9 X509 chain validation programatica offline) and ssl_openssl_icpbrasil_policy.pas (S9 Certificate Policies parser, recognizes AC-Raiz V1..V10)."/>
+    <Version Major="42" Minor="1"/>
+    <Files Count="60">
       <Item1>
         <Filename Value="asn1util.pas"/>
         <UnitName Value="asn1util"/>
@@ -206,6 +206,50 @@
         <Filename Value="ssl_openssl_icpbrasil.pas"/>
         <UnitName Value="ssl_openssl_icpbrasil"/>
       </Item48>
+      <Item49>
+        <Filename Value="ssl_openssl_chain_verify.pas"/>
+        <UnitName Value="ssl_openssl_chain_verify"/>
+      </Item49>
+      <Item50>
+        <Filename Value="ssl_openssl_icpbrasil_policy.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_policy"/>
+      </Item50>
+      <Item51>
+        <Filename Value="ssl_openssl_icpbrasil_extparsers.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_extparsers"/>
+      </Item51>
+      <Item52>
+        <Filename Value="ssl_openssl_icpbrasil_crl.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_crl"/>
+      </Item52>
+      <Item53>
+        <Filename Value="ssl_openssl_icpbrasil_ocsp.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_ocsp"/>
+      </Item53>
+      <Item54>
+        <Filename Value="ssl_openssl_icpbrasil_san.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_san"/>
+      </Item54>
+      <Item55>
+        <Filename Value="ssl_openssl_icpbrasil_pkcs7.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_pkcs7"/>
+      </Item55>
+      <Item56>
+        <Filename Value="ssl_openssl_icpbrasil_tsp.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_tsp"/>
+      </Item56>
+      <Item57>
+        <Filename Value="ssl_openssl_icpbrasil_winstore.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_winstore"/>
+      </Item57>
+      <Item58>
+        <Filename Value="ssl_openssl_icpbrasil_pkcs11.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_pkcs11"/>
+      </Item58>
+      <Item59>
+        <Filename Value="ssl_openssl_icpbrasil_fiscal.pas"/>
+        <UnitName Value="ssl_openssl_icpbrasil_fiscal"/>
+      </Item59>
     </Files>
     <RequiredPkgs Count="1">
       <Item1>

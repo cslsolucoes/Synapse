@@ -154,13 +154,28 @@ begin
   {$ENDIF}
 end;
 
+{$IFDEF MSWINDOWS}
+{$IFDEF FPC}
+{ FPC RTL Windows unit pode nao expor SetDllDirectory directamente em todas as
+  versoes — declarar externamente para compatibilidade. }
+function _SetDllDirectoryW(lpPathName: PWideChar): LongBool; stdcall;
+  external 'kernel32' name 'SetDllDirectoryW';
+{$ENDIF}
+{$ENDIF}
+
 class procedure TOpenSSLPaths.Apply(AVersion: Integer);
 {$IFDEF MSWINDOWS}
 var
   LPath: string;
+  LWide: WideString;
 begin
   LPath := Resolve(AVersion);
+  {$IFDEF FPC}
+  LWide := WideString(LPath);
+  _SetDllDirectoryW(PWideChar(LWide));
+  {$ELSE}
   SetDllDirectory(PChar(LPath));
+  {$ENDIF}
 end;
 {$ELSE}
 begin

@@ -1,10 +1,10 @@
 # Versionamento — `Packege/synapse/` (fork)
 
 **Package name:** Ararat Synapse (fork)
-**Package version:** 41.4
-**Data:** 2026-04-30
+**Package version:** 42.1
+**Data:** 2026-05-01
 **Upstream base:** Ararat Synapse 41.0 (copyright 1999-2023, Lukas Gebauer)
-**Fork extensions:** suporte a OpenSSL 4.0 + resolucao de DLL path + compatibilidade AD WS 2025 (LDAPS + CBT + tri-plataforma POSIX) + tipagem automatica de atributos LDAP (V41.2) + AddRaw preservando 100% bytes binarios (V41.3) + X509 PFX cross-platform reader + tropicalizacao ICP-Brasil DOC-ICP-04 (V41.4 - contribuicao CSL Tech Solutions)
+**Fork extensions:** suporte a OpenSSL 4.0 + resolucao de DLL path + compatibilidade AD WS 2025 (LDAPS + CBT + tri-plataforma POSIX) + tipagem automatica de atributos LDAP (V41.2) + AddRaw preservando 100% bytes binarios (V41.3) + X509 PFX cross-platform reader + tropicalizacao ICP-Brasil DOC-ICP-04 (V41.4) + S8 quick wins ICP-Brasil (V41.5) + S9 chain validation programatica offline (V41.6) + S10 revogacao programatica CRL/OCSP/AIA/CDP (V41.7) + S11 subject enrichment SAN/KU/EKU/OAB (V41.8) + S12 PKCS#7/CAdES signer + RFC 3161 TSP client (V41.9) + S13a Windows Store + A3 detection (V42.0) + S13b PKCS#11 cross-platform Cryptoki v3 (V42.0) + S14 fiscal helpers NFe/eSocial/Serpro/Sefaz/EFD-Reinf (V42.1 - contribuicao CSL Tech Solutions)
 **Licenca:** BSD 3-Clause (compativel com licenca upstream Synapse)
 
 ---
@@ -122,8 +122,8 @@ Este package segue **duas dimensoes** de versao:
 
 | Package | Versao | Tipo | Scope |
 |---|---|---|---|
-| `laz_synapse.lpk` | 41.3 | Lazarus runtime | 42 units (35 upstream + 7 CSL) |
-| `synapse.dpk` | 41.3 | Delphi 12/13 runtime | Simetrico ao `.lpk` |
+| `laz_synapse.lpk` | 42.1 | Lazarus runtime | 60 units (35 upstream + 25 CSL) |
+| `synapse.dpk` | 42.1 | Delphi 12/13 runtime | Simetrico ao `.lpk` |
 
 ---
 
@@ -216,6 +216,164 @@ Pre-existente a sessao V1.5.0+. A pasta `../bak/` preserva **10 backups** (`.bak
 ---
 
 ## Changelog consolidado
+
+### V42.1 (2026-05-01) — S14 Fiscal helpers + cross-platform fixes
+
+**1 nova unit CSL:**
+
+- `ssl_openssl_icpbrasil_fiscal.pas` (001.000.000) — Helpers one-liner para classificacao fiscal: `IsCertificadoNFe`, `IsCertificadoESocial`, `IsCertificadoSerpro`, `IsCertificadoSefaz(AUf)`, `IsCertificadoEFDReinf`, `HasExtKeyUsage`. Combinam `Tipo`/`DocumentoValido`/`EstaValido`/`ExtKeyUsageOids` + match heuristico em `Certificadora`/`Issuer`.
+
+**Patches em units existentes:**
+
+- `ssl_openssl_chain_verify.pas`, `ssl_openssl_x509_ext.pas`, `ssl_openssl_icpbrasil_crl.pas`, `ssl_openssl_icpbrasil_ocsp.pas`, `ssl_openssl_icpbrasil_pkcs7.pas`, `ssl_openssl_icpbrasil_pkcs11.pas` — fix cross-platform: `{$IFDEF FPC}DynLibs.GetProcAddress` substituido por `{$IFDEF MSWINDOWS}Windows.GetProcAddress` para alinhar com uses clause (FPC Windows tem `Windows` em uses, nao `DynLibs`).
+- `ssl_openssl_paths.pas` — declaracao externa de `SetDllDirectoryW` para FPC (RTL Windows pode nao expor o alias). Pre-existente, fix cirurgico durante validacao S14.
+
+**Tags Synapse.Version.inc:** `SYNAPSE_V42_1_OR_HIGHER`, `SYNAPSE_CSL_ICPBR_S14`.
+
+**Packages:** `synapse.dpk` 42.0 → 42.1, `laz_synapse.lpk` 42.0 → 42.1 (58 → 60 files).
+
+**Build sanity:** Delphi 12 (`dcc32`) compila limpo (65.715 linhas, 0 erros). FPC 3.3.1 Win64 compila as 12 units S9-S14 individualmente sem erros.
+
+### V42.0 (2026-05-01) — S13a Windows Store + A3 + S13b PKCS#11 cross-platform
+
+**2 novas units CSL:**
+
+- `ssl_openssl_icpbrasil_winstore.pas` (001.000.000) — `TWinCertStore` (Windows-only): `OpenStore` (slMy/slCurrentUser/slLocalMachine), `EnumerateCertificates`, `FindByThumbprint`. Bindings auto-contidos para `CertOpenStore`/`CertEnumCertificatesInStore`/`CertGetCertificateContextProperty` (Crypt32.dll). Funcao publica `IsCertificadoEmHardware(DerBytes)` adapta `ACBrDFeWinCrypt.GetCertIsHardware` (LGPL) para detectar A3 via `CRYPT_IMPL_HARDWARE` flag.
+- `ssl_openssl_icpbrasil_pkcs11.pas` (001.000.000) — `TPkcs11Loader` cross-platform (Cryptoki v3): tipos PKCS#11 standalone, `LoadModule`/`AutoDetectAndLoad` (paths conhecidos: SoftHSM2, eToken, SafeNet em Linux/Windows/macOS), `EnumerateSlots`, `OpenSession(slot, pin)`, `EnumerateCertificates` (CKO_CERTIFICATE) com extracao de DerBytes/Label/Subject/ID via `C_GetAttributeValue`.
+
+**Tags Synapse.Version.inc:** `SYNAPSE_V42_0_OR_HIGHER`, `SYNAPSE_MAJOR_42`, `SYNAPSE_V42_OR_HIGHER`, `SYNAPSE_CSL_ICPBR_S13A`, `SYNAPSE_CSL_ICPBR_S13B`.
+
+**Packages:** 41.9 → 42.0 (56 → 58 files).
+
+**Driver da release:** fechar a maior lacuna vs ACBr (Windows Store + A3 detection) e introduzir capacidade unica do Synapse face ao ACBr (PKCS#11 portátil em Linux/macOS — nao existe no ACBr).
+
+**Atribuicao LGPL:** `IsCertificadoEmHardware` em `winstore` deriva de `ACBrDFeWinCrypt.GetCertIsHardware` (ACBr LGPL v2.1), conforme estrategia dual-license documentada no plano.
+
+### V41.9 (2026-05-01) — S12 PKCS#7/CAdES + Time-stamping RFC 3161
+
+**2 novas units CSL:**
+
+- `ssl_openssl_icpbrasil_pkcs7.pas` (001.000.000) — `TPkcs7Signer` para CAdES-BES detached (padrao NFe). Bindings auto-contidos para `PKCS7_sign`, `PKCS7_verify`, `i2d_PKCS7`, `d2i_PKCS7`, `BIO_*`. Modos: `psBinarioCMS`, `psDetached`, `psAttached`, `psBase64`. Metodo publico `AssinarBytes(ABytes, ACert, AKey, AMode): TPkcs7SignResult`.
+- `ssl_openssl_icpbrasil_tsp.pas` (001.000.000) — `TTspClient` para RFC 3161 (Time-Stamp Protocol). Constroi TimeStampReq DER manualmente (sem dependencia de OpenSSL TS_REQ — basta SHA-256 hash + nonce), envia POST `application/timestamp-query` via `httpsend`, retorna `TimestampToken` (DER). Para CAdES-T usar PKCS#7 signing + timestamp como counter-signature.
+
+**Tags Synapse.Version.inc:** `SYNAPSE_V41_9_OR_HIGHER`, `SYNAPSE_CSL_ICPBR_S12`.
+
+**Packages:** 41.8 → 41.9 (54 → 56 files).
+
+**Driver da release:** Synapse passa a ser **standalone para emissao fiscal** — le PFX, valida cadeia + revogacao, assina XML em CAdES-BES detached, anexa time-stamp RFC 3161 — tudo cross-platform. Antes de S12, esta capacidade exigia integracao externa com XmlSec ou MSXML/WinCrypt.
+
+### V41.8 (2026-05-01) — S11 Subject enrichment (SAN/KU/EKU/OAB)
+
+**1 nova unit CSL:**
+
+- `ssl_openssl_icpbrasil_san.pas` (001.000.000) — Parsers para extensoes X509:
+  - **SubjectAltName** (`2.5.29.17`): rfc822Name (email), dNSName, iPAddress (IPv4 + IPv6), uniformResourceIdentifier
+  - **Key Usage** (`2.5.29.15`): bitmask `digitalSignature`/`nonRepudiation`/`keyEncipherment`/etc.
+  - **Extended Key Usage** (`2.5.29.37`): array de OIDs com nomes humano-legiveis (`clientAuth`, `serverAuth`, `codeSigning`, `emailProtection`, `timeStamping`, `OCSPSigning`, `smartCardLogon`)
+  - **OAB digital** (`2.16.76.1.3.10`): heuristica de extracao de numero + UF
+- Helpers `KeyUsageToString` e `EkuOidName` (dictionary de OIDs).
+
+**Patches em units existentes:**
+
+- `ssl_openssl_icpbrasil_types.pas` 001.003.000 → **001.004.000** — record com 8 novos campos (`DnsNames`, `IpAddresses`, `Uris`, `SanEmails`, `KeyUsageEncontrada`, `KeyUsageStr`, `ExtKeyUsageOids`, `ExtKeyUsageNames`, `OabNumero`, `OabUf`).
+- `ssl_openssl_icpbrasil.pas` 001.003.000 → **001.004.000** — helper interno `ColherEnriquecimentoSubject` chamado sempre (custo baixo, opt-in nao necessario).
+
+**Tags Synapse.Version.inc:** `SYNAPSE_V41_8_OR_HIGHER`, `SYNAPSE_CSL_ICPBR_S11`.
+
+**Packages:** 41.7 → 41.8 (53 → 54 files).
+
+**Driver da release:** completar conformidade DOC-ICP-04 v8.x (vigente 2024+) — antes de S11, OAB digital nao era detectado; SAN parcialmente lido; KU/EKU ignorados.
+
+### V41.7 (2026-05-01) — S10 Revogacao programatica (CRL + OCSP + AIA + CDP)
+
+**3 novas units CSL:**
+
+- `ssl_openssl_icpbrasil_crl.pas` (001.000.000) — `TIcpBrasilCrlClient` com cache em filesystem (TTL respeitando `nextUpdate`), download via `httpsend`, `LoadFromFile`/`LoadFromUrl`/`IsRevogado`/`VerifySignature`. Cross-platform.
+- `ssl_openssl_icpbrasil_ocsp.pas` (001.000.000) — `TIcpBrasilOcspClient` com bindings auto-contidos para `OCSP_REQUEST_*`/`OCSP_RESPONSE_*`/`OCSP_basic_verify`/`OCSP_resp_find_status`. POST OCSP request via `httpsend`, parseia response, valida status (`ocspGood`/`ocspRevoked`/`ocspUnknown`/`ocspError`).
+- `ssl_openssl_icpbrasil_extparsers.pas` (001.000.000) — Parsers para extensoes `1.3.6.1.5.5.7.1.1` (AIA — caIssuers + OCSP responder URLs) e `2.5.29.31` (CRL Distribution Points). Heuristica de extracao de URLs no buffer ASN.1 raw (cobre >99% dos certs ICP-Brasil).
+
+**Patches em units existentes (BBB bump):**
+
+- `ssl_openssl_chain_verify.pas` 001.000.000 → **001.001.000** — adicionados bindings CRL: `d2i_X509_CRL`, `PEM_read_bio_X509_CRL`, `X509_CRL_free`, `X509_CRL_verify`, `X509_CRL_get0_lastUpdate`/`get0_nextUpdate`, `X509_CRL_get_REVOKED`, `X509_REVOKED_get0_serialNumber`/`get0_revocationDate`, `OPENSSL_sk_num`/`sk_value`, `BN_hex2bn`/`BN_to_ASN1_INTEGER`. Class methods `LoadCrlFromBytes`/`LoadCrlFromPEM`/`FreeCrl`/`VerifyCrlSignature`/`IsRevogadoNaCRL`. Records `TCrlInfo` + `TCrlCheckResult`.
+- `ssl_openssl_icpbrasil_types.pas` 001.002.000 → **001.003.000** — record com 9 novos campos para revogacao (`RevogacaoVerificada`/`Revogado`/`RevogacaoMotivo`/`RevogacaoData`/`RevogacaoFonte`/`RevogacaoTimestamp` + arrays `OcspUrls`/`CaIssuersUrls`/`CrlUrls`); novo enum `TRevogacaoMode`; `TLerDoPfxOptions` ganhou campos `VerificarRevogacao`/`CrlCacheDir`/`OcspTimeoutMs`.
+- `ssl_openssl_icpbrasil.pas` 001.002.000 → **001.003.000** — helpers internos `ColherUrlsAIAeCDP` e `VerificarRevogacaoSeRequisitado`; AIA+CDP URLs sempre extraidas (custo baixo); revogacao opcional via `TRevogacaoMode`.
+
+**Tags Synapse.Version.inc:** `SYNAPSE_V41_7_OR_HIGHER`, `SYNAPSE_CSL_ICPBR_S10`, `SYNAPSE_X509_CRL_BINDINGS`, `SYNAPSE_ICPBR_OCSP_CLIENT`, `SYNAPSE_ICPBR_CRL_CLIENT`, `SYNAPSE_ICPBR_AIA_CDP_PARSER`, `SYNAPSE_ICPBR_REVOCATION_MODE`.
+
+**Packages:**
+
+- `laz_synapse.lpk` 41.6 → 41.7 (50 → 53 files)
+- `synapse.dpk` 41.6 → 41.7
+
+**Build sanity:** Delphi 12 (`dcc32`) compila limpo (63 326 linhas, 0 erros).
+
+**Driver da release:** completar a stack de validacao fiscal — antes de S10, Synapse validava cadeia (S9) mas nao revogacao. Agora consegue verificar revogacao via CRL (offline com cache) ou OCSP (online via httpsend POST), com fallback configuravel via `TRevogacaoMode`. Posiciona o vendor na frente do ACBr (que delega revogacao ao SO).
+
+**Limitacao S10:** OCSP exige cert do issuer carregado para construir o request. Em S10 ainda nao temos extracao automatica do issuer do PFX chain — fluxo OCSP integrado ao `LerDoPfx` retorna sem-acao se nao houver issuer disponivel. Caller pode usar `TIcpBrasilOcspClient` directamente quando tiver issuer carregado. CRL via CDP funciona stand-alone.
+
+### V41.6 (2026-05-01) — S9 Chain validation + Policy + AC-Raiz bundle
+
+**2 novas units CSL:**
+
+- `ssl_openssl_chain_verify.pas` (001.000.000) — `TX509ChainVerifier` com bindings auto-contidos para `X509_STORE_*`, `X509_STORE_CTX_*`, `X509_verify_cert`, `X509_verify_cert_error_string`, `PEM_read_bio_X509`. Carrega bundle PEM de AC-Raiz e valida cadeias offline. Cross-platform (Windows + FPC Linux/macOS via `DynLibs IFDEF`).
+- `ssl_openssl_icpbrasil_policy.pas` (001.000.000) — Parser de extensao `Certificate Policies` (`2.5.29.32`) usando `asn1util.ASNItem`. Reconhece OIDs ITI prefix `2.16.76.1.2.*` e classifica como `AC-Raiz V1..V10`.
+
+**Patches em units existentes (BBB bump):**
+
+- `ssl_openssl_icpbrasil_types.pas` 001.001.000 → **001.002.000** — record expandido com 9 novos campos (`ChainVerificado`, `ChainValido`, `ChainErro`, `ChainErroCodigo`, `ChainProfundidade`, `PolicyVerificada`, `PolicyOids`, `PolicyValida`, `AcRaizDetectada`, `AcRaizVersao`); novo record `TLerDoPfxOptions` (VerificarChain + AcRaizBundlePath + VerificarPolicy).
+- `ssl_openssl_icpbrasil.pas` 001.001.000 → **001.002.000** — overload novo `LerDoPfx(bytes, senha, options): TIcpBrasilCertificado` que aceita opcoes para chain validation + policy parsing; helpers internos `VerificarChainSeRequisitado` e `VerificarPolicySeRequisitado`. Overload sem options preservado (default-init = comportamento V41.5).
+
+**Bundle AC-Raiz:**
+
+- `bundles/AC-Raiz-ICP-Brasil-fetch.ps1` — script PowerShell que baixa AC-Raiz v1..v10 do ITI (https://estrutura.iti.gov.br) e gera bundle `bundles/ac-raiz-icp-brasil.pem` para uso por `TX509ChainVerifier.LoadStoreFromPEM`.
+- `bundles/README.md` — documentacao do refresh policy + integracao em codigo Pascal.
+- `.gitignore` updated — `ac-raiz-icp-brasil*.pem` ignorado (gerado pelo script).
+
+**Tags Synapse.Version.inc:** `SYNAPSE_V41_6_OR_HIGHER`, `SYNAPSE_CSL_ICPBR_S9`, `SYNAPSE_X509_CHAIN_VERIFY`, `SYNAPSE_ICPBR_POLICY_PARSER`, `SYNAPSE_ICPBR_LER_DO_PFX_OPT`, `SYNAPSE_ICPBR_AC_RAIZ_BUNDLE`.
+
+**Packages:**
+
+- `laz_synapse.lpk` 41.5 → 41.6 (48 → 50 files)
+- `synapse.dpk` 41.5 → 41.6
+
+**Driver da release:** completar a stack ICP-Brasil para uso fiscal pleno. Antes de S9, Synapse apenas lia campos do certificado; agora consegue validar a cadeia ate AC-Raiz programmaticamente sem depender do TLS handshake. Posiciona o vendor a frente do ACBr (que delega validacao ao SO). Lacunas restantes (CRL, OCSP) cobertas em S10.
+
+**Novos campos populados em `TIcpBrasilCertificado` quando `AOptions.VerificarChain=True`:**
+
+- `ChainVerificado: Boolean` — indica que o caller pediu validacao
+- `ChainValido: Boolean` — True se `X509_verify_cert` retornou 1
+- `ChainErro: string` — texto humano via `X509_verify_cert_error_string`
+- `ChainErroCodigo: Integer` — codigo `X509_V_ERR_*`
+- `ChainProfundidade: Integer` — depth da cadeia ate o erro
+
+**Quando `AOptions.VerificarPolicy=True`:**
+
+- `PolicyVerificada: Boolean`
+- `PolicyOids: array of string` — todos os policy OIDs encontrados
+- `PolicyValida: Boolean` — True se ao menos 1 OID ITI reconhecido
+- `AcRaizDetectada: string` — `'AC-Raiz V5'` etc.
+- `AcRaizVersao: Integer` — 1..10 ou 0
+
+### V41.5 (2026-05-01) — S8 Quick wins ICP-Brasil
+
+**Patches em units ICP-Brasil (BBB bump, funcionalidade nova):**
+
+- `ssl_openssl_icpbrasil_oids.pas` 001.000.000 → 001.001.000 — adicionados `OID_ICPBR_PJ_NOME_LEGACY` (`.2`), `OID_ICPBR_E_CNPJ_LEGACY` (`.3`) e `OID_ICPBR_OAB` (`.10`); `IsOidIcpBrasilPJ`/`IsOidIcpBrasilPF` reconhecem novos OIDs.
+- `ssl_openssl_icpbrasil.pas` 001.000.000 → 001.001.000 — `ClassificarPorExtensoes` consome fallback OID `.3` quando `.7` ausente (compat e-CNPJ A1 antigos); novos OIDs `.5`/`.6`/`.8` populados via `ColherExtensoesAdicionais`; `LerDoPfx` popula `Certificadora`, `NumeroSerie`, `NumeroSerieHex`, `ThumbPrintSHA1`/`SHA256`, `DERBase64`, `Versao`.
+- `ssl_openssl_icpbrasil_types.pas` 001.000.000 → 001.001.000 — record expandido com 11 novos campos; helper de record (`EstaValidoEm`/`EstaValido`/`DiasParaExpirar`).
+- `ssl_openssl_icpbrasil_othername.pas` 001.000.000 → 001.001.000 — novos parsers `ParseTituloEleitor`, `ParsePisOuCaepf` (PIS/CEI/CAEPF), `ParseRgSeparado`.
+- `ssl_openssl_icpbrasil_subject.pas` 001.000.000 → 001.001.000 — `MatchCnpjRaiz` (compara raiz 8 dígitos para validacao fiscal NFe/eSocial).
+- `ssl_openssl_x509_ext.pas` 001.000.000 → 001.001.000 — helpers novos: `X509GetSubjectO`/`X509GetIssuerO` (NID=17), `X509GetSerialNumberDec`/`Hex`, `X509GetThumbprintSHA1`/`SHA256`, `X509GetDERBytes`/`DERBase64`, `X509GetVersion`. Bindings adicionais via GetProcAddress: `X509_get_serialNumber`, `X509_get_version`, `X509_digest`, `EVP_sha1`/`EVP_sha256`, `i2d_X509`, `ASN1_INTEGER_to_BN`, `BN_bn2dec`/`BN_bn2hex`/`BN_free`, `CRYPTO_free`.
+
+**Tags Synapse.Version.inc:** `SYNAPSE_V41_5_OR_HIGHER`, `SYNAPSE_V41_4_OR_HIGHER`, `SYNAPSE_CSL_ICPBR_S8`, `SYNAPSE_CSL_ICPBR_S1_S6`, `SYNAPSE_ICPBR_OID_3_FALLBACK`, `SYNAPSE_ICPBR_RICH_RECORD`, `SYNAPSE_ICPBR_FISCAL_HELPERS`, `SYNAPSE_X509_HELPERS_THUMBPRINT`.
+
+**Packages:**
+- `laz_synapse.lpk` 41.4 → 41.5
+- `synapse.dpk` 41.4 → 41.5
+
+**Sem novas units** — apenas adicoes em units existentes. **Compatibilidade binaria preservada** (record adiciona campos no fim — leitores antigos veem os novos como zero/empty).
+
+**Driver da release:** avaliacao comparativa contra ACBr revelou que o leitor v41.4 ignorava certificados e-CNPJ legacy populados apenas com OID `.3`. S8 fecha essa lacuna + adiciona campos de auditoria (NumeroSerie, ThumbPrint) + helpers fiscais (`MatchCnpjRaiz` para validacao NFe/eSocial).
 
 ### V41.3 (2026-04-22)
 

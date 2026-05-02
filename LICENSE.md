@@ -5,7 +5,7 @@ Ararat Synapse — Synchronous TCP/IP and serial communication library
 Copyright (c) 1999-2023, Lukas Gebauer
 All rights reserved.
 
-CSL fork (v41.3+) modifications:
+CSL fork (v41.3+, v41.4 X509+ICP-Brasil, v41.5 S8, v41.6 S9, v41.7 S10, v41.8 S11, v41.9 S12, v42.0 S13a+S13b, v42.1 S14) modifications:
 Copyright (c) 2026, CSL Tech Solutions
 All rights reserved.
 ============================================================================

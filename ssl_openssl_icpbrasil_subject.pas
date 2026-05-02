@@ -1,5 +1,5 @@
 {==============================================================================|
-| Project : Ararat Synapse                                       | 001.000.000 |
+| Project : Ararat Synapse                                       | 001.001.000 |
 |==============================================================================|
 | Content: ICP-Brasil Subject CN parser + CNPJ/CPF mod-11 validators           |
 |==============================================================================|
@@ -86,6 +86,13 @@ function IsCpfValido(const ACpf: string): Boolean;
     11 digits -> ibtECpf
     other     -> ibtDesconhecido }
 function ClassificarDocumento(const ADocumentoCru: string): TIcpBrasilTipo;
+
+{ Compares 8-digit CNPJ "raiz" between certificate document and a fiscal
+  document (NFe emitter, eSocial responsible, etc). True if both have valid
+  14-digit CNPJ format and first 8 digits match. Allows subsidiaries to
+  use parent CNPJ certificate (matriz/filial). Strips formatting before
+  comparison. }
+function MatchCnpjRaiz(const ACertCnpj, ADocCnpj: string): Boolean;
 
 implementation
 
@@ -250,6 +257,17 @@ begin
   else
     Result := ibtDesconhecido;
   end;
+end;
+
+function MatchCnpjRaiz(const ACertCnpj, ADocCnpj: string): Boolean;
+var
+  LCert, LDoc: string;
+begin
+  Result := False;
+  LCert := SoDigitos(ACertCnpj);
+  LDoc  := SoDigitos(ADocCnpj);
+  if (Length(LCert) <> 14) or (Length(LDoc) <> 14) then Exit;
+  Result := Copy(LCert, 1, 8) = Copy(LDoc, 1, 8);
 end;
 
 end.

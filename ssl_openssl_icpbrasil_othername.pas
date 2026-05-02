@@ -1,5 +1,5 @@
 {==============================================================================|
-| Project : Ararat Synapse                                       | 001.000.000 |
+| Project : Ararat Synapse                                       | 001.001.000 |
 |==============================================================================|
 | Content: ICP-Brasil ASN.1 OtherName parsers (DOC-ICP-04 v3.0)                |
 |==============================================================================|
@@ -93,6 +93,25 @@ function ParseEcnpjData(const AOctets: TByteArray;
 function ParseEcnpjResponsavel(const AOctets: TByteArray;
                                out ANomeResponsavel, ACpfResp: string;
                                out ANascResp: TDateTime): Boolean;
+
+{ Parses OID 2.16.76.1.3.5 (Voter title — Titulo de Eleitor).
+  Expected: 27-char PrintableString concatenation:
+    Title (12) + Zona (3) + Secao (4) + Municipio (6) + UF (2)
+  Returns digits-only string preserving order; '' if no digits. }
+function ParseTituloEleitor(const AOctets: TByteArray;
+                            out ATitulo: string): Boolean;
+
+{ Parses OID 2.16.76.1.3.6 (PIS/PASEP/INSS or CAEPF/CEI per DOC-ICP-04 v6+).
+  Expected: PrintableString of 11 digits (PIS legacy), 12 digits (CEI legacy)
+  or 14 digits (CAEPF current). Returns the digits without separators. }
+function ParsePisOuCaepf(const AOctets: TByteArray;
+                        out AValor: string): Boolean;
+
+{ Parses OID 2.16.76.1.3.8 (RG separado).
+  Expected: 21-char PrintableString = RG (15) + UF emissor (2) + Orgao (4)
+  or RG (15) + Emissor (6). Returns RG and Emissor separately. }
+function ParseRgSeparado(const AOctets: TByteArray;
+                         out ARg, AEmissor: string): Boolean;
 
 { Fallback: extracts printable raw content. Sanitizes non-printable to '.'. }
 function ExtractFieldOrRaw(const AOctets: TByteArray; const AOIDName: string): string;
@@ -249,6 +268,72 @@ var
 begin
   ANomeResponsavel := '';
   Result := ParseEcpfData(AOctets, ANascResp, ACpfResp, LRgIgnored, LEmissorIgnored);
+end;
+
+function ParseTituloEleitor(const AOctets: TByteArray;
+  out ATitulo: string): Boolean;
+var
+  LStripped: TByteArray;
+  LStr, LDigits: AnsiString;
+begin
+  Result := False;
+  ATitulo := '';
+  LStripped := StripASN1OctetWrapper(AOctets);
+  if Length(LStripped) = 0 then Exit;
+  LStr := BytesToAnsi(LStripped);
+  LDigits := SoDigitosLocal(LStr);
+  if Length(LDigits) >= 12 then
+  begin
+    ATitulo := string(LDigits);
+    Result := True;
+  end;
+end;
+
+function ParsePisOuCaepf(const AOctets: TByteArray;
+  out AValor: string): Boolean;
+var
+  LStripped: TByteArray;
+  LStr, LDigits: AnsiString;
+begin
+  Result := False;
+  AValor := '';
+  LStripped := StripASN1OctetWrapper(AOctets);
+  if Length(LStripped) = 0 then Exit;
+  LStr := BytesToAnsi(LStripped);
+  LDigits := SoDigitosLocal(LStr);
+  { 11 = PIS/PASEP legacy; 12 = CEI legacy; 14 = CAEPF (DOC-ICP-04 v6+).
+    Accept any of these lengths. }
+  if (Length(LDigits) = 11) or (Length(LDigits) = 12) or (Length(LDigits) = 14) then
+  begin
+    AValor := string(LDigits);
+    Result := True;
+  end;
+end;
+
+function ParseRgSeparado(const AOctets: TByteArray;
+  out ARg, AEmissor: string): Boolean;
+var
+  LStripped: TByteArray;
+  LStr: AnsiString;
+  LRg, LEmissor: AnsiString;
+begin
+  Result := False;
+  ARg := '';
+  AEmissor := '';
+  LStripped := StripASN1OctetWrapper(AOctets);
+  if Length(LStripped) = 0 then Exit;
+  LStr := BytesToAnsi(LStripped);
+  if Length(LStr) < 15 then Exit;
+  LRg := AnsiString(Trim(string(Copy(LStr, 1, 15))));
+  if LRg <> '' then
+    ARg := string(LRg);
+  if Length(LStr) >= 21 then
+  begin
+    LEmissor := AnsiString(Trim(string(Copy(LStr, 16, 6))));
+    if LEmissor <> '' then
+      AEmissor := string(LEmissor);
+  end;
+  Result := ARg <> '';
 end;
 
 function ExtractFieldOrRaw(const AOctets: TByteArray; const AOIDName: string): string;

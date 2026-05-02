@@ -27,7 +27,7 @@ package synapse;
 {$ENDIF IMPLICITBUILDING}
 {$IMPLICITBUILD ON}
 {$RUNONLY}
-{$DESCRIPTION 'Ararat Synapse v41.4 + fork extensions (X509 PFX reader + ICP-Brasil tropicalization) - runtime package for Delphi 12/13'}
+{$DESCRIPTION 'Ararat Synapse v42.1 + fork extensions completos S8..S14 (ICP-Brasil reader + chain + revocation + SAN/KU/EKU + PKCS#7/CAdES + RFC 3161 TSP + Windows Store + PKCS#11 + fiscal helpers) - runtime package for Delphi 12/13'}
 
 (*
   synapse.dpk -- Runtime package Delphi para Ararat Synapse + fork CSL
@@ -118,6 +118,17 @@ contains
   ssl_openssl_icpbrasil_types      in 'ssl_openssl_icpbrasil_types.pas',
   ssl_openssl_icpbrasil_subject    in 'ssl_openssl_icpbrasil_subject.pas',
   ssl_openssl_icpbrasil_othername  in 'ssl_openssl_icpbrasil_othername.pas',
+  ssl_openssl_icpbrasil_policy     in 'ssl_openssl_icpbrasil_policy.pas',
+  ssl_openssl_chain_verify         in 'ssl_openssl_chain_verify.pas',
+  ssl_openssl_icpbrasil_extparsers in 'ssl_openssl_icpbrasil_extparsers.pas',
+  ssl_openssl_icpbrasil_crl        in 'ssl_openssl_icpbrasil_crl.pas',
+  ssl_openssl_icpbrasil_ocsp       in 'ssl_openssl_icpbrasil_ocsp.pas',
+  ssl_openssl_icpbrasil_san        in 'ssl_openssl_icpbrasil_san.pas',
+  ssl_openssl_icpbrasil_pkcs7      in 'ssl_openssl_icpbrasil_pkcs7.pas',
+  ssl_openssl_icpbrasil_tsp        in 'ssl_openssl_icpbrasil_tsp.pas',
+  ssl_openssl_icpbrasil_winstore   in 'ssl_openssl_icpbrasil_winstore.pas',
+  ssl_openssl_icpbrasil_pkcs11     in 'ssl_openssl_icpbrasil_pkcs11.pas',
+  ssl_openssl_icpbrasil_fiscal     in 'ssl_openssl_icpbrasil_fiscal.pas',
   ssl_openssl_icpbrasil            in 'ssl_openssl_icpbrasil.pas';
 
 end.

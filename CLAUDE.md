@@ -8,9 +8,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Vendor package — Ararat Synapse (CSL fork).** Esta pasta NAO e um projecto autonomo: e a biblioteca Synapse patched, consumida como vendor pelo modulo pai `ActiveDirectoryORM` (`projects/modules/ActiveDirectoryORM/`) via `-U"Packege\synapse"` (Delphi) / `-FuPackege/synapse` (FPC).
 
-- **Package version:** 41.3 (2026-04-22) — ver [VERSION.md](VERSION.md)
+- **Package version:** 42.1 (2026-05-01) — ver [VERSION.md](VERSION.md)
 - **Upstream base:** Ararat Synapse 41.0 (Lukas Gebauer, 1999-2023)
-- **Fork CSL:** CSL Softwares — OpenSSL 4.0, DLL path helper, tri-plataforma POSIX, tipagem automatica de atributos LDAP, `AddRaw` preservando 100% bytes binarios
+- **Fork CSL:** CSL Softwares — 14 sprints CSL entregues (S1-S14):
+  - **V41.0-V41.3** — OpenSSL 4.0, DLL path helper, tri-plataforma POSIX, tipagem automatica de atributos LDAP, `AddRaw` 100% bytes binarios
+  - **V41.4 (S1-S6)** — leitor PFX X509 cross-platform + tropicalizacao ICP-Brasil DOC-ICP-04
+  - **V41.5 (S8)** — quick wins ICP-Brasil: fallback OID `.3` legacy + record expandido + helpers fiscais
+  - **V41.6 (S9)** — chain validation programatica offline + Certificate Policies parser + bundle AC-Raiz v1..v10
+  - **V41.7 (S10)** — revogacao programatica CRL+OCSP+AIA+CDP
+  - **V41.8 (S11)** — subject enrichment SAN/KU/EKU/OAB
+  - **V41.9 (S12)** — PKCS#7/CAdES-BES signer + RFC 3161 TSP client
+  - **V42.0 (S13a+S13b)** — Windows Store + A3 detection + PKCS#11 cross-platform
+  - **V42.1 (S14)** — fiscal helpers (NFe/eSocial/Serpro/Sefaz/EFD-Reinf) + cross-platform fixes
 - **Licenca:** BSD 3-Clause (compativel com upstream)
 
 **NAO tem `.dpr`/`.lpr` proprios.** Bootstrap interactivo (FASE 3 do template parent) nao se aplica aqui — este e vendor, nao projecto. O CLAUDE.md do modulo pai em [../../CLAUDE.md](../../CLAUDE.md) tem precedencia para assuntos transversais do ActiveDirectoryORM.
@@ -166,7 +175,22 @@ Ficheiros onde o upstream ficou a frente (merge nao trivial — CSL tem modifica
 ## Referencias canonicas
 
 - [README.md](README.md) — visao geral do package CSL fork
+- [CHANGELOG.md](CHANGELOG.md) — changelog Keep-a-Changelog formal
 - [VERSION.md](VERSION.md) — politica de versionamento + inventario de 50 units + changelog consolidado
+- [Documentation/docs-extra/](Documentation/docs-extra/) — documentacao da camada ICP-Brasil (V41.4..V42.1):
+  - [icpbrasil-oids.md](Documentation/docs-extra/icpbrasil-oids.md) — OIDs DOC-ICP-04 reconhecidos
+  - [integration-guide.md](Documentation/docs-extra/integration-guide.md) — guia de integracao do leitor
+  - [cn-formats.md](Documentation/docs-extra/cn-formats.md) — parsing do CN do Subject
+  - [security-considerations.md](Documentation/docs-extra/security-considerations.md) — consideracoes de seguranca
+  - [ac-raiz-bundle.md](Documentation/docs-extra/ac-raiz-bundle.md) — V41.6 — chain validation + bundle AC-Raiz
+  - [revocation.md](Documentation/docs-extra/revocation.md) — V41.7 — CRL + OCSP + AIA/CDP
+  - [cades-signing.md](Documentation/docs-extra/cades-signing.md) — V41.9 — PKCS#7/CAdES-BES + RFC 3161 TSP
+  - [winstore.md](Documentation/docs-extra/winstore.md) — V42.0 — Windows Certificate Store + A3 detection
+  - [pkcs11.md](Documentation/docs-extra/pkcs11.md) — V42.0 — PKCS#11 cross-platform (Cryptoki v3)
+  - [fiscal-helpers.md](Documentation/docs-extra/fiscal-helpers.md) — V42.1 — IsCertificadoNFe/eSocial/Serpro/Sefaz/EFD-Reinf
+- [bundles/](bundles/) — V41.6 — trust anchors para validacao offline:
+  - [AC-Raiz-ICP-Brasil-fetch.ps1](bundles/AC-Raiz-ICP-Brasil-fetch.ps1) — script PowerShell para refresh do bundle
+  - [README.md](bundles/README.md) — politica de refresh + uso em codigo
 - [Documentation/README.md](Documentation/README.md) — hub de analise vendor
 - [Documentation/LDAPSend.md](Documentation/LDAPSend.md) — analise da `TLDAPSend`
 - [Documentation/TCPBlockSocket.md](Documentation/TCPBlockSocket.md) — analise do `TTCPBlockSocket`
@@ -180,4 +204,12 @@ Ficheiros onde o upstream ficou a frente (merge nao trivial — CSL tem modifica
 
 ## Changelog (CLAUDE.md)
 
+- **2026-05-01c** — Bump V41.6 → V42.1 nas referencias do topo. Documentadas as 5 releases CSL S10-S14 entregues no mesmo dia:
+  - **V41.7 (S10)** — Revogacao programatica completa: 3 novas units (`ssl_openssl_icpbrasil_crl`, `_ocsp`, `_extparsers`). Bindings CRL adicionados a `ssl_openssl_chain_verify`. Record com 9 novos campos de revogacao + `TRevogacaoMode`.
+  - **V41.8 (S11)** — Subject enrichment: 1 nova unit (`ssl_openssl_icpbrasil_san`). Parsers SAN/KU/EKU/OAB. Record com 8 novos campos.
+  - **V41.9 (S12)** — Assinatura fiscal nativa: 2 novas units (`ssl_openssl_icpbrasil_pkcs7`, `_tsp`). Synapse passa a ser standalone para emissao fiscal (sem dependencia de XmlSec/MSXML).
+  - **V42.0 (S13a+S13b)** — Hardware: 2 novas units (`ssl_openssl_icpbrasil_winstore` Windows-only, `ssl_openssl_icpbrasil_pkcs11` cross-platform). Atribuicao LGPL para `IsCertificadoEmHardware` (adaptado de ACBr).
+  - **V42.1 (S14)** — Fiscal helpers + cross-platform fixes: 1 nova unit (`ssl_openssl_icpbrasil_fiscal`). Validacao FPC 3.3.1 Win64 + Delphi 12 dcc32 (65.715 linhas, 0 erros).
+- **2026-05-01b** — Bump V41.5 → V41.6 nas referencias do topo. Documentada a release CSL S9 (V41.6 — chain validation programatica offline): 2 novas units CSL (`ssl_openssl_chain_verify.pas`, `ssl_openssl_icpbrasil_policy.pas`); record expandido com 9 campos para chain/policy; novo overload `LerDoPfx` com `TLerDoPfxOptions`; bundle AC-Raiz ICP-Brasil v1..v10 via script `bundles/AC-Raiz-ICP-Brasil-fetch.ps1`.
+- **2026-05-01** — Bump V41.3 → V41.5 nas referencias do topo. Documentadas as duas releases CSL desde a ultima reescrita: V41.4 (leitor PFX X509 cross-platform + tropicalizacao ICP-Brasil DOC-ICP-04 — 7 units novas) e V41.5 (S8 quick wins ICP-Brasil — fallback OID `.3` legacy, record expandido com 11 novos campos, helpers fiscais `MatchCnpjRaiz`/`EstaValidoEm`, parsers `.5`/`.6`/`.8`). Adicionada secao `docs-extra/` no inventario de Referencias canonicas (camada ICP-Brasil tem documentacao especifica).
 - **2026-04-24** — Reescrita completa do CLAUDE.md local: eliminado o template generico (project-bootstrap, FASE 3, criacao de `.dpr`/`.lpr`) que nao se aplica a vendor. Ficheiro passa a descrever especificamente a pasta `Packege/synapse/` como fork CSL do Ararat Synapse 41.3 — estrutura, compilacao via package/source, selector OpenSSL, areas protegidas com politica de patch do vendor, prerrogativas perenes especificas (compatibilidade binaria upstream, cross-compiler, Windows-only guardado, backups em `bak/`, bump triplo sincronizado). Referencias rapidas apontam para [README.md](README.md), [VERSION.md](VERSION.md) e CLAUDE.md do modulo pai.

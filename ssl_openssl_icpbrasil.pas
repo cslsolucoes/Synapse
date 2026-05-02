@@ -1,5 +1,5 @@
 {==============================================================================|
-| Project : Ararat Synapse                                       | 001.000.000 |
+| Project : Ararat Synapse                                       | 001.004.000 |
 |==============================================================================|
 | Content: ICP-Brasil PFX/X509 reader - public API                             |
 |==============================================================================|
@@ -75,7 +75,13 @@ type
                                      and Subject CN fallback also fails
     }
     class function LerDoPfx(const APfxBytes: array of Byte;
-                            const ASenha: AnsiString): TIcpBrasilCertificado;
+                            const ASenha: AnsiString): TIcpBrasilCertificado; overload;
+
+    { Extended overload (S9/V41.6) — accepts options record to enable
+      optional chain validation and policy parsing. }
+    class function LerDoPfx(const APfxBytes: array of Byte;
+                            const ASenha: AnsiString;
+                            const AOptions: TLerDoPfxOptions): TIcpBrasilCertificado; overload;
 
     { Tolerant version - returns record with Tipo=ibtDesconhecido instead of
       raising EIcpBrasilNaoIcpBrasil (useful for batch scanning). Other
@@ -89,7 +95,13 @@ implementation
 
 uses
   ssl_openssl3_lib,
-  ssl_openssl_x509_ext;
+  ssl_openssl_x509_ext,
+  ssl_openssl_chain_verify,
+  ssl_openssl_icpbrasil_policy,
+  ssl_openssl_icpbrasil_extparsers,
+  ssl_openssl_icpbrasil_crl,
+  ssl_openssl_icpbrasil_ocsp,
+  ssl_openssl_icpbrasil_san;
 
 function FindExtensionByOID(const AExtensions: TX509ExtensionArray;
   const AOID: AnsiString; out ABytes: TByteArray): Boolean;
@@ -109,6 +121,55 @@ begin
     end;
 end;
 
+function TentarExtrairCnpjPJ(const AExtensions: TX509ExtensionArray;
+  out ACnpj: string): Boolean;
+var
+  LBytes: TByteArray;
+begin
+  Result := False;
+  ACnpj := '';
+
+  { Try modern OID .7 (DOC-ICP-04 v3+) first - present in most certs since 2008. }
+  if FindExtensionByOID(AExtensions, AnsiString(OID_ICPBR_E_CNPJ_DATA), LBytes) then
+    if ParseEcnpjData(LBytes, ACnpj) then
+      Exit(True);
+
+  { Fallback to legacy OID .3 (DOC-ICP-04 pre-v3) - some older e-CNPJ A1
+    certs in circulation populate only this. Same 14-digit CNPJ format. }
+  if FindExtensionByOID(AExtensions, AnsiString(OID_ICPBR_E_CNPJ_LEGACY), LBytes) then
+    if ParseEcnpjData(LBytes, ACnpj) then
+      Exit(True);
+end;
+
+procedure ColherExtensoesAdicionais(const AExtensions: TX509ExtensionArray;
+  var AResult: TIcpBrasilCertificado);
+var
+  LBytes: TByteArray;
+  LValor, LRgSep, LEmissorSep: string;
+begin
+  { OID 2.16.76.1.3.5 — Titulo de Eleitor }
+  if FindExtensionByOID(AExtensions, AnsiString(OID_ICPBR_E_CPF_TITULO), LBytes) then
+    if ParseTituloEleitor(LBytes, LValor) then
+      AResult.TituloEleitor := LValor;
+
+  { OID 2.16.76.1.3.6 — PIS/PASEP (v3) ou CAEPF/CEI (v6+) }
+  if FindExtensionByOID(AExtensions, AnsiString(OID_ICPBR_E_CPF_INSS), LBytes) then
+    if ParsePisOuCaepf(LBytes, LValor) then
+      AResult.PisOuCaepf := LValor;
+
+  { OID 2.16.76.1.3.8 — RG separado }
+  if FindExtensionByOID(AExtensions, AnsiString(OID_ICPBR_E_CPF_RG), LBytes) then
+    if ParseRgSeparado(LBytes, LRgSep, LEmissorSep) then
+    begin
+      AResult.RgSeparado := LRgSep;
+      { If main RG/Emissor not yet populated by .1, populate from .8 too. }
+      if AResult.ResponsavelRg = '' then
+        AResult.ResponsavelRg := LRgSep;
+      if (AResult.ResponsavelEmissor = '') and (LEmissorSep <> '') then
+        AResult.ResponsavelEmissor := LEmissorSep;
+    end;
+end;
+
 procedure ClassificarPorExtensoes(const AExtensions: TX509ExtensionArray;
   var AResult: TIcpBrasilCertificado);
 var
@@ -116,15 +177,12 @@ var
   LCnpj, LCpfResp, LRg, LEmissor, LNomeResp: string;
   LNasc: TDateTime;
 begin
-  if FindExtensionByOID(AExtensions, AnsiString(OID_ICPBR_E_CNPJ_DATA), LBytes) then
+  if TentarExtrairCnpjPJ(AExtensions, LCnpj) then
   begin
     AResult.Tipo := ibtECnpj;
-    if ParseEcnpjData(LBytes, LCnpj) then
-    begin
-      AResult.SubjectDocumento := LCnpj;
-      AResult.DocumentoFormatado := FormatarCnpj(LCnpj);
-      AResult.DocumentoValido := IsCnpjValido(LCnpj);
-    end;
+    AResult.SubjectDocumento := LCnpj;
+    AResult.DocumentoFormatado := FormatarCnpj(LCnpj);
+    AResult.DocumentoValido := IsCnpjValido(LCnpj);
 
     if FindExtensionByOID(AExtensions, AnsiString(OID_ICPBR_E_CNPJ_RESPONSAVEL), LBytes) then
       if ParseEcnpjResponsavel(LBytes, LNomeResp, LCpfResp, LNasc) then
@@ -132,6 +190,7 @@ begin
         AResult.ResponsavelCpf := LCpfResp;
         AResult.ResponsavelNasc := LNasc;
       end;
+    ColherExtensoesAdicionais(AExtensions, AResult);
     Exit;
   end;
 
@@ -148,6 +207,7 @@ begin
       AResult.ResponsavelRg := LRg;
       AResult.ResponsavelEmissor := LEmissor;
     end;
+    ColherExtensoesAdicionais(AExtensions, AResult);
     Exit;
   end;
 
@@ -191,8 +251,277 @@ end;
 
 { TIcpBrasilCertificadoReader }
 
+procedure VerificarChainSeRequisitado(const ACert: PX509; const ACa: SslPtr;
+  const AOptions: TLerDoPfxOptions; var AResult: TIcpBrasilCertificado);
+var
+  LVerifier: TX509ChainVerifier;
+  LVerify: TVerifyResult;
+  LBundlePath: string;
+  LCount: Integer;
+begin
+  if not AOptions.VerificarChain then Exit;
+
+  AResult.ChainVerificado := True;
+
+  LBundlePath := AOptions.AcRaizBundlePath;
+  if LBundlePath = '' then
+    LBundlePath := 'bundles' + PathDelim + 'ac-raiz-icp-brasil.pem';
+
+  LVerifier := TX509ChainVerifier.Create;
+  try
+    LCount := LVerifier.LoadStoreFromPEM(LBundlePath);
+    if LCount <= 0 then
+    begin
+      AResult.ChainValido := False;
+      AResult.ChainErro :=
+        'Bundle AC-Raiz vazio ou nao encontrado em "' + LBundlePath +
+        '". Rodar bundles/AC-Raiz-ICP-Brasil-fetch.ps1.';
+      AResult.ChainErroCodigo := -1;
+      Exit;
+    end;
+    LVerify := LVerifier.Verify(ACert, ACa);
+    AResult.ChainValido       := LVerify.OK;
+    AResult.ChainErro         := LVerify.ErrText;
+    AResult.ChainErroCodigo   := LVerify.ErrCode;
+    AResult.ChainProfundidade := LVerify.ChainProfundidade;
+  finally
+    LVerifier.Free;
+  end;
+end;
+
+procedure ColherEnriquecimentoSubject(const AExtensions: TX509ExtensionArray;
+  var AResult: TIcpBrasilCertificado);
+const
+  OID_SAN = '2.5.29.17';
+  OID_KU  = '2.5.29.15';
+  OID_EKU = '2.5.29.37';
+var
+  I, J: Integer;
+  LBytes: TByteArray;
+  LSAN: TSANInfo;
+  LKU:  TKeyUsageInfo;
+  LEKU: TExtKeyUsageInfo;
+  LOABBytes: TByteArray;
+  LOAB: TOABInfo;
+begin
+  for I := 0 to High(AExtensions) do
+  begin
+    if string(AExtensions[I].OID) = OID_SAN then
+    begin
+      SetLength(LBytes, Length(AExtensions[I].Data));
+      if Length(LBytes) > 0 then
+        Move(AExtensions[I].Data[0], LBytes[0], Length(LBytes));
+      LSAN := ParseSAN(LBytes);
+      if not LSAN.Encontrada then Continue;
+
+      SetLength(AResult.DnsNames, Length(LSAN.DnsNames));
+      for J := 0 to High(LSAN.DnsNames) do AResult.DnsNames[J] := LSAN.DnsNames[J];
+
+      SetLength(AResult.IpAddresses, Length(LSAN.IpAddresses));
+      for J := 0 to High(LSAN.IpAddresses) do AResult.IpAddresses[J] := LSAN.IpAddresses[J];
+
+      SetLength(AResult.Uris, Length(LSAN.Uris));
+      for J := 0 to High(LSAN.Uris) do AResult.Uris[J] := LSAN.Uris[J];
+
+      SetLength(AResult.SanEmails, Length(LSAN.Emails));
+      for J := 0 to High(LSAN.Emails) do AResult.SanEmails[J] := LSAN.Emails[J];
+
+      if (Length(LSAN.Emails) > 0) and (AResult.Email = '') then
+        AResult.Email := LSAN.Emails[0];
+    end
+    else if string(AExtensions[I].OID) = OID_KU then
+    begin
+      SetLength(LBytes, Length(AExtensions[I].Data));
+      if Length(LBytes) > 0 then
+        Move(AExtensions[I].Data[0], LBytes[0], Length(LBytes));
+      LKU := ParseKeyUsage(LBytes);
+      AResult.KeyUsageEncontrada := LKU.Encontrada;
+      if LKU.Encontrada then
+        AResult.KeyUsageStr := KeyUsageToString(LKU.Bits);
+    end
+    else if string(AExtensions[I].OID) = OID_EKU then
+    begin
+      SetLength(LBytes, Length(AExtensions[I].Data));
+      if Length(LBytes) > 0 then
+        Move(AExtensions[I].Data[0], LBytes[0], Length(LBytes));
+      LEKU := ParseExtKeyUsage(LBytes);
+      if LEKU.Encontrada then
+      begin
+        SetLength(AResult.ExtKeyUsageOids, Length(LEKU.Oids));
+        SetLength(AResult.ExtKeyUsageNames, Length(LEKU.Oids));
+        for J := 0 to High(LEKU.Oids) do
+        begin
+          AResult.ExtKeyUsageOids[J] := LEKU.Oids[J];
+          AResult.ExtKeyUsageNames[J] := EkuOidName(LEKU.Oids[J]);
+        end;
+      end;
+    end
+    else if string(AExtensions[I].OID) = OID_ICPBR_OAB then
+    begin
+      SetLength(LOABBytes, Length(AExtensions[I].Data));
+      if Length(LOABBytes) > 0 then
+        Move(AExtensions[I].Data[0], LOABBytes[0], Length(LOABBytes));
+      LOAB := ParseOAB(LOABBytes);
+      if LOAB.Encontrada then
+      begin
+        AResult.OabNumero := LOAB.Numero;
+        AResult.OabUf := LOAB.UF;
+      end;
+    end;
+  end;
+end;
+
+procedure ColherUrlsAIAeCDP(const AExtensions: TX509ExtensionArray;
+  var AResult: TIcpBrasilCertificado);
+const
+  OID_AIA = '1.3.6.1.5.5.7.1.1';
+  OID_CDP = '2.5.29.31';
+var
+  I, J: Integer;
+  LBytes: TByteArray;
+  LAIA: TAIAInfo;
+  LCDP: TCDPInfo;
+begin
+  for I := 0 to High(AExtensions) do
+  begin
+    if string(AExtensions[I].OID) = OID_AIA then
+    begin
+      SetLength(LBytes, Length(AExtensions[I].Data));
+      if Length(LBytes) > 0 then
+        Move(AExtensions[I].Data[0], LBytes[0], Length(LBytes));
+      LAIA := ParseAIA(LBytes);
+      SetLength(AResult.OcspUrls, Length(LAIA.OcspUrls));
+      for J := 0 to High(LAIA.OcspUrls) do
+        AResult.OcspUrls[J] := LAIA.OcspUrls[J];
+      SetLength(AResult.CaIssuersUrls, Length(LAIA.CaIssuersUrls));
+      for J := 0 to High(LAIA.CaIssuersUrls) do
+        AResult.CaIssuersUrls[J] := LAIA.CaIssuersUrls[J];
+    end
+    else if string(AExtensions[I].OID) = OID_CDP then
+    begin
+      SetLength(LBytes, Length(AExtensions[I].Data));
+      if Length(LBytes) > 0 then
+        Move(AExtensions[I].Data[0], LBytes[0], Length(LBytes));
+      LCDP := ParseCDP(LBytes);
+      SetLength(AResult.CrlUrls, Length(LCDP.CrlUrls));
+      for J := 0 to High(LCDP.CrlUrls) do
+        AResult.CrlUrls[J] := LCDP.CrlUrls[J];
+    end;
+  end;
+end;
+
+procedure VerificarRevogacaoSeRequisitado(const ACert: PX509;
+  const AOptions: TLerDoPfxOptions; var AResult: TIcpBrasilCertificado);
+var
+  LSerialHex: string;
+  LDone: Boolean;
+
+  function TryCRL: Boolean;
+  var
+    LCrlClient: TIcpBrasilCrlClient;
+    LCrlRes: TCrlCheckResult;
+    K: Integer;
+  begin
+    Result := False;
+    if Length(AResult.CrlUrls) = 0 then Exit;
+    LCrlClient := TIcpBrasilCrlClient.Create;
+    try
+      if AOptions.CrlCacheDir = '' then
+        LCrlClient.CacheDir := 'caches' + PathDelim + 'crl'
+      else
+        LCrlClient.CacheDir := AOptions.CrlCacheDir;
+      for K := 0 to High(AResult.CrlUrls) do
+      begin
+        if not LCrlClient.LoadFromUrl(AResult.CrlUrls[K]) then Continue;
+        if not LCrlClient.IsRevogado(LSerialHex, LCrlRes) then Continue;
+        AResult.RevogacaoVerificada := True;
+        AResult.Revogado := LCrlRes.Revogado;
+        AResult.RevogacaoMotivo := LCrlRes.Motivo;
+        AResult.RevogacaoData := LCrlRes.DataRevogacao;
+        AResult.RevogacaoFonte := 'CRL: ' + AResult.CrlUrls[K];
+        AResult.RevogacaoTimestamp := SysUtils.Now;
+        Exit(True);
+      end;
+    finally
+      LCrlClient.Free;
+    end;
+  end;
+
+  function TryOCSP: Boolean;
+  begin
+    Result := False;
+    if Length(AResult.OcspUrls) = 0 then Exit;
+    { Para OCSP precisamos do cert do issuer; em S10 ainda nao temos
+      automaticamente. Skip silenciosamente — caller pode usar TIcpBrasilOcspClient
+      directamente quando tiver issuer carregado (S10b/S11+). }
+  end;
+
+begin
+  if AOptions.VerificarRevogacao = rmNone then Exit;
+
+  AResult.RevogacaoVerificada := False;
+  AResult.Revogado := False;
+  AResult.RevogacaoTimestamp := SysUtils.Now;
+
+  LSerialHex := AResult.NumeroSerieHex;
+  if LSerialHex = '' then Exit;
+
+  LDone := False;
+  case AOptions.VerificarRevogacao of
+    rmCRL:          LDone := TryCRL;
+    rmOCSP:         LDone := TryOCSP;
+    rmOCSPThenCRL:
+      begin
+        LDone := TryOCSP;
+        if not LDone then LDone := TryCRL;
+      end;
+    rmCRLThenOCSP:
+      begin
+        LDone := TryCRL;
+        if not LDone then LDone := TryOCSP;
+      end;
+  end;
+end;
+
+procedure VerificarPolicySeRequisitado(const AExtensions: TX509ExtensionArray;
+  const AOptions: TLerDoPfxOptions; var AResult: TIcpBrasilCertificado);
+const
+  OID_CERT_POLICIES = '2.5.29.32';
+var
+  I, J: Integer;
+  LBytes: TByteArray;
+  LFound: Boolean;
+  LPolicyInfo: TPolicyInfo;
+begin
+  if not AOptions.VerificarPolicy then Exit;
+
+  AResult.PolicyVerificada := True;
+  LFound := False;
+  for I := 0 to High(AExtensions) do
+    if string(AExtensions[I].OID) = OID_CERT_POLICIES then
+    begin
+      SetLength(LBytes, Length(AExtensions[I].Data));
+      if Length(LBytes) > 0 then
+        Move(AExtensions[I].Data[0], LBytes[0], Length(LBytes));
+      LFound := True;
+      Break;
+    end;
+  if not LFound then Exit;
+
+  LPolicyInfo := ParseCertificatePolicies(LBytes);
+  { Copy element-by-element — Delphi treats 'array of string' from
+    different units as distinct types. }
+  SetLength(AResult.PolicyOids, Length(LPolicyInfo.PolicyOids));
+  for J := 0 to High(LPolicyInfo.PolicyOids) do
+    AResult.PolicyOids[J] := LPolicyInfo.PolicyOids[J];
+  AResult.PolicyValida     := LPolicyInfo.Valida;
+  AResult.AcRaizDetectada  := LPolicyInfo.AcRaizDetectadaStr;
+  AResult.AcRaizVersao     := LPolicyInfo.AcRaizDetectada;
+end;
+
 class function TIcpBrasilCertificadoReader.LerDoPfx(const APfxBytes: array of Byte;
-  const ASenha: AnsiString): TIcpBrasilCertificado;
+  const ASenha: AnsiString;
+  const AOptions: TLerDoPfxOptions): TIcpBrasilCertificado;
 var
   LCert: PX509;
   LPKey: SslPtr;
@@ -219,14 +548,34 @@ begin
     LCnRaw := TX509Ext.X509GetSubjectCN(LCert);
     Result.Subject := string(LCnRaw);
     Result.Issuer := string(TX509Ext.X509GetIssuerCN(LCert));
+    Result.Certificadora := string(TX509Ext.X509GetIssuerO(LCert));
 
     Result.NotBefore := TX509Ext.X509ASN1TimeToDateTimeUTC(TX509Ext.X509GetNotBefore(LCert));
     Result.NotAfter  := TX509Ext.X509ASN1TimeToDateTimeUTC(TX509Ext.X509GetNotAfter(LCert));
+
+    Result.NumeroSerie      := TX509Ext.X509GetSerialNumberDec(LCert);
+    Result.NumeroSerieHex   := TX509Ext.X509GetSerialNumberHex(LCert);
+    Result.ThumbPrintSHA1   := TX509Ext.X509GetThumbprintSHA1(LCert);
+    Result.ThumbPrintSHA256 := TX509Ext.X509GetThumbprintSHA256(LCert);
+    Result.DERBase64        := TX509Ext.X509GetDERBase64(LCert);
+    Result.Versao           := TX509Ext.X509GetVersion(LCert);
 
     LExtensions := TX509Ext.X509GetAllExtensions(LCert);
     ClassificarPorExtensoes(LExtensions, Result);
 
     FallbackSubjectCN(string(LCnRaw), Result);
+
+    { S9: validacoes opcionais (chain + policy). LCert e LCa precisam estar
+      vivos durante a chain verify, por isso e feito antes do finally. }
+    VerificarChainSeRequisitado(LCert, LCa, AOptions, Result);
+    VerificarPolicySeRequisitado(LExtensions, AOptions, Result);
+
+    { S10: AIA + CDP URLs sempre extraidas (custo baixo); revogacao opcional. }
+    ColherUrlsAIAeCDP(LExtensions, Result);
+    VerificarRevogacaoSeRequisitado(LCert, AOptions, Result);
+
+    { S11: Subject enrichment (SAN/KU/EKU/OAB) — sempre extraido (custo baixo). }
+    ColherEnriquecimentoSubject(LExtensions, Result);
 
     if Result.Tipo = ibtDesconhecido then
       raise EIcpBrasilNaoIcpBrasil.Create(
@@ -237,6 +586,15 @@ begin
     if Assigned(LCert) then X509Free(LCert);
     if Assigned(LPKey) then EvpPkeyFree(LPKey);
   end;
+end;
+
+class function TIcpBrasilCertificadoReader.LerDoPfx(const APfxBytes: array of Byte;
+  const ASenha: AnsiString): TIcpBrasilCertificado;
+var
+  LDefaultOpts: TLerDoPfxOptions;
+begin
+  FillChar(LDefaultOpts, SizeOf(LDefaultOpts), 0);
+  Result := LerDoPfx(APfxBytes, ASenha, LDefaultOpts);
 end;
 
 class function TIcpBrasilCertificadoReader.TentarLerDoPfx(

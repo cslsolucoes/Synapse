@@ -2,10 +2,20 @@
 
 **Synapse** provides blocking-socket networking and protocol clients/servers (HTTP, SMTP, FTP, LDAP, POP3, IMAP, etc.) for Delphi and Free Pascal.
 
-Esta é uma **cópia CSL** do Synapse, derivada do upstream oficial em <https://github.com/geby/synapse>, com extensões proprietárias adicionadas pelo CSL Softwares para suportar OpenSSL 4.0, resolução de path de DLLs, tri-plataforma POSIX em `ldapsend`, **tipagem automática de atributos LDAP** (V41.2) e **preservação 100% de bytes binários** via `AddRaw` (V41.3).
+Esta é uma **cópia CSL** do Synapse, derivada do upstream oficial em <https://github.com/geby/synapse>, com extensões proprietárias adicionadas pelo CSL Softwares ao longo de 14 sprints (S1–S14):
+
+- **V41.0–V41.3** — OpenSSL 4.0 + DLL path helper + tri-plataforma POSIX em `ldapsend` + tipagem automática de atributos LDAP + `AddRaw` preservando 100% bytes binários
+- **V41.4 (S1–S6)** — leitor PFX X509 cross-platform + tropicalização ICP-Brasil DOC-ICP-04
+- **V41.5 (S8)** — quick wins ICP-Brasil: fallback OID `.3` legacy + record expandido (NumeroSerie/Thumbprint/Certificadora/DERBase64/Versão) + parsers `.5`/`.6`/`.8` + helpers fiscais `MatchCnpjRaiz`/`EstaValidoEm`
+- **V41.6 (S9)** — chain validation programática offline (`TX509ChainVerifier`) + parser de Certificate Policies (`2.5.29.32`) + bundle AC-Raiz ICP-Brasil v1..v10
+- **V41.7 (S10)** — revogação programática completa: CRL + OCSP + AIA + CDP (`TIcpBrasilCrlClient`/`TIcpBrasilOcspClient`)
+- **V41.8 (S11)** — subject enrichment: SAN (DNS/IP/URI/email) + Key Usage + Extended Key Usage + OAB digital
+- **V41.9 (S12)** — assinatura PKCS#7/CAdES-BES nativa (`TPkcs7Signer`) + Time-stamping RFC 3161 (`TTspClient`)
+- **V42.0 (S13a + S13b)** — Windows Certificate Store (`TWinCertStore`) + A3 detection + PKCS#11 (Cryptoki v3) cross-platform (`TPkcs11Loader`)
+- **V42.1 (S14)** — fiscal helpers `IsCertificadoNFe`/`IsCertificadoESocial`/`IsCertificadoSerpro`/`IsCertificadoSefaz`/`IsCertificadoEFDReinf` + cross-platform fixes
 
 - **Upstream base:** Ararat Synapse 41.0 (copyright 1999-2023, Lukas Gebauer)
-- **Fork CSL:** 2026-04-22, `CSL Softwares` — package version **41.3**
+- **Fork CSL:** 2026-05-01, `CSL Softwares` — package version **42.1**
 - **Referência de consulta do upstream actualizado** (não entra em build): `Packege/synapse.v41/` (snapshot do repo git acima; pode estar ligeiramente mais recente que `Packege/synapse/`)
 
 ---
@@ -45,17 +55,189 @@ Esta é uma **cópia CSL** do Synapse, derivada do upstream oficial em <https://
 
 | Unit | Propósito | Versão |
 | --- | --- | --- |
-| `ssl_openssl_x509_ext.pas` | Companion cross-platform: leitor de PFX X509 via OpenSSL 3.x. `TX509Ext.PKCS12ReadFromBytes`, `X509GetNotBefore/After`, `X509GetAllExtensions`, `X509ASN1TimeToDateTimeUTC` | 001.000.000 |
-| `ssl_openssl_icpbrasil_oids.pas` | Constantes OIDs DOC-ICP-04 (6 OIDs `2.16.76.1.3.*`) + helpers `IsOidIcpBrasilPJ/PF` | 001.000.000 |
-| `ssl_openssl_icpbrasil_types.pas` | Record `TIcpBrasilCertificado` (17 campos) + `TIcpBrasilTipo` enum + 3 excecoes especificas | 001.000.000 |
-| `ssl_openssl_icpbrasil_subject.pas` | Parser CN `EMPRESA:CNPJ` / `NOME:CPF` + validadores CNPJ/CPF mod-11 (Receita Federal) | 001.000.000 |
-| `ssl_openssl_icpbrasil_othername.pas` | Parsers ASN.1 OtherName ICP-Brasil v3 (`ParseEcnpjData`, `ParseEcpfData`, `ParseEcnpjResponsavel`) | 001.000.000 |
-| `ssl_openssl_icpbrasil.pas` | API publica: `TIcpBrasilCertificadoReader.LerDoPfx(bytes, senha): TIcpBrasilCertificado` | 001.000.000 |
+| `ssl_openssl_x509_ext.pas` | Companion cross-platform: leitor de PFX X509 via OpenSSL 3.x. `TX509Ext.PKCS12ReadFromBytes`, `X509GetNotBefore/After`, `X509GetAllExtensions`, `X509ASN1TimeToDateTimeUTC` | 001.001.000 (S8) |
+| `ssl_openssl_icpbrasil_oids.pas` | Constantes OIDs DOC-ICP-04 + helpers `IsOidIcpBrasilPJ/PF` | 001.001.000 (S8) |
+| `ssl_openssl_icpbrasil_types.pas` | Record `TIcpBrasilCertificado` + `TIcpBrasilTipo` enum + 3 excecoes especificas | 001.001.000 (S8) |
+| `ssl_openssl_icpbrasil_subject.pas` | Parser CN `EMPRESA:CNPJ` / `NOME:CPF` + validadores CNPJ/CPF mod-11 (Receita Federal) | 001.001.000 (S8) |
+| `ssl_openssl_icpbrasil_othername.pas` | Parsers ASN.1 OtherName ICP-Brasil v3 (`ParseEcnpjData`, `ParseEcpfData`, `ParseEcnpjResponsavel`) | 001.001.000 (S8) |
+| `ssl_openssl_icpbrasil.pas` | API publica: `TIcpBrasilCertificadoReader.LerDoPfx(bytes, senha): TIcpBrasilCertificado` | 001.001.000 (S8) |
 
-#### Quick start — leitura de PFX ICP-Brasil
+### v41.5 (2026-05-01, S8 quick wins — contribuição CSL Tech Solutions)
+
+Direcção tomada após avaliação comparativa contra ACBr: corrigir lacuna crítica do leitor v41.4 (certs `.3`-only ignorados) + enriquecer record com campos de auditoria (NumeroSerie, Thumbprint, DERBase64, Certificadora, Versão) + entregar 3 parsers ASN.1 para os OIDs declarados mas não consumidos (`.5` Título Eleitor, `.6` PIS/PASEP/CAEPF/CEI, `.8` RG separado) + helpers fiscais cross-cutting (`MatchCnpjRaiz` para validação NFe/eSocial e métodos `EstaValidoEm`/`EstaValido`/`DiasParaExpirar` no record).
+
+**Novos OIDs reconhecidos:**
+
+| OID | Constante | Conteúdo | Consumido |
+| --- | --- | --- | --- |
+| `2.16.76.1.3.2` | `OID_ICPBR_PJ_NOME_LEGACY` | Nome PJ legacy (DOC-ICP-04 pré-v3) | Reconhecido em `IsOidIcpBrasilPJ` |
+| `2.16.76.1.3.3` | `OID_ICPBR_E_CNPJ_LEGACY` | **CNPJ legacy — fallback crítico** | Sim — `TentarExtrairCnpjPJ` |
+| `2.16.76.1.3.5` | `OID_ICPBR_E_CPF_TITULO` | Título de Eleitor | Sim — `ParseTituloEleitor` |
+| `2.16.76.1.3.6` | `OID_ICPBR_E_CPF_INSS` | PIS/PASEP (v3) ou CAEPF/CEI (v6+) | Sim — `ParsePisOuCaepf` |
+| `2.16.76.1.3.8` | `OID_ICPBR_E_CPF_RG` | RG separado | Sim — `ParseRgSeparado` |
+| `2.16.76.1.3.10` | `OID_ICPBR_OAB` | OAB digital | Reconhecido (parser pendente em S11) |
+
+**Novos campos no `TIcpBrasilCertificado`:**
+
+| Campo | Tipo | Origem |
+| --- | --- | --- |
+| `Certificadora` | `string` | `Issuer.O=` (NID=17) |
+| `NumeroSerie` / `NumeroSerieHex` | `string` | `X509_get_serialNumber` + BN_bn2dec/hex |
+| `ThumbPrintSHA1` / `ThumbPrintSHA256` | `string` (hex uppercase) | `X509_digest` + EVP_sha1/256 |
+| `DERBase64` | `string` | `i2d_X509` + Base64 |
+| `Versao` | `Integer` | `X509_get_version` |
+| `TituloEleitor` | `string` | OID `.5` |
+| `PisOuCaepf` | `string` | OID `.6` |
+| `RgSeparado` | `string` | OID `.8` |
+
+**Novos métodos do record (`TIcpBrasilCertificadoHelper`):** `EstaValidoEm(AData)`, `EstaValido`, `DiasParaExpirar`.
+
+**Novo helper público em `_subject.pas`:** `MatchCnpjRaiz(ACertCnpj, ADocCnpj): Boolean` — compara raiz 8 dígitos para validação fiscal (espelha política `ValidarCNPJCertificado` do ACBr).
+
+**Novos helpers em `ssl_openssl_x509_ext.pas`:** `X509GetSubjectO`, `X509GetIssuerO`, `X509GetSerialNumberDec`, `X509GetSerialNumberHex`, `X509GetThumbprintSHA1`, `X509GetThumbprintSHA256`, `X509GetDERBytes`, `X509GetDERBase64`, `X509GetVersion`.
+
+### v41.6 (2026-05-01, S9 — chain validation + Certificate Policies — contribuição CSL Tech Solutions)
+
+S9 entrega validação programática de cadeia X509 **offline**, sem depender do TLS handshake. Posiciona o vendor à frente do ACBr (que delega validação ao SO).
+
+**2 novas units CSL:**
+
+| Unit | Propósito | Versão |
+| --- | --- | --- |
+| `ssl_openssl_chain_verify.pas` | `TX509ChainVerifier` com bindings auto-contidos para `X509_STORE_*`, `X509_STORE_CTX_*`, `X509_verify_cert`, `PEM_read_bio_X509`. API: `LoadStoreFromPEM`/`LoadStoreFromCertList`/`AddTrustedCert`/`Verify`. | 001.000.000 |
+| `ssl_openssl_icpbrasil_policy.pas` | Parser da extensão Certificate Policies (`2.5.29.32`) via `asn1util.ASNItem`. Reconhece OIDs ITI prefix `2.16.76.1.2.*` e classifica como `AC-Raiz V1..V10`. | 001.000.000 |
+
+**Novo overload em `LerDoPfx` (com options):**
 
 ```pascal
-uses ssl_openssl_icpbrasil;
+type
+  TLerDoPfxOptions = record
+    VerificarChain:    Boolean;
+    AcRaizBundlePath:  string;       // '' = bundles/ac-raiz-icp-brasil.pem
+    VerificarPolicy:   Boolean;
+  end;
+
+class function TIcpBrasilCertificadoReader.LerDoPfx(
+  const APfxBytes: array of Byte;
+  const ASenha: AnsiString;
+  const AOptions: TLerDoPfxOptions): TIcpBrasilCertificado; overload;
+```
+
+**Novos campos no `TIcpBrasilCertificado` (populados quando options=True):**
+
+| Campo | Tipo | Origem |
+| --- | --- | --- |
+| `ChainVerificado` | `Boolean` | Indica que caller pediu validação |
+| `ChainValido` | `Boolean` | True se `X509_verify_cert` retornou 1 |
+| `ChainErro` | `string` | Texto humano via `X509_verify_cert_error_string` |
+| `ChainErroCodigo` | `Integer` | `X509_V_ERR_*` |
+| `ChainProfundidade` | `Integer` | Profundidade até erro |
+| `PolicyVerificada` | `Boolean` | Caller pediu policy parse |
+| `PolicyOids` | `array of string` | Todos os policy OIDs encontrados |
+| `PolicyValida` | `Boolean` | True se ao menos 1 OID ITI reconhecido |
+| `AcRaizDetectada` | `string` | `'AC-Raiz V5'` etc. |
+| `AcRaizVersao` | `Integer` | 1..10 ou 0 |
+
+**Bundle AC-Raiz ICP-Brasil:**
+
+- `bundles/AC-Raiz-ICP-Brasil-fetch.ps1` — script PowerShell que baixa AC-Raiz v1..v10 do ITI e gera `bundles/ac-raiz-icp-brasil.pem` (não commitado, gerado pelo consumidor).
+- `bundles/README.md` — documentação de uso e refresh policy.
+- [`docs-extra/ac-raiz-bundle.md`](docs-extra/ac-raiz-bundle.md) — guia completo da camada de chain validation.
+
+**Compatibilidade:** o overload sem options (`LerDoPfx(bytes, senha)`) preserva comportamento V41.5 byte-a-byte. CRL/OCSP entregues em V41.7.
+
+### v41.7 (2026-05-01, S10 — revogação programática completa — contribuição CSL Tech Solutions)
+
+S10 fecha a maior lacuna estrutural face ao Fisco: revogação programática via CRL e OCSP, sem depender do SO. Detalhes em [`Documentation/docs-extra/revocation.md`](Documentation/docs-extra/revocation.md).
+
+**3 novas units CSL:**
+
+| Unit | Propósito | Versão |
+| --- | --- | --- |
+| `ssl_openssl_icpbrasil_crl.pas` | `TIcpBrasilCrlClient` com cache filesystem (TTL `nextUpdate`), download via `httpsend`. `LoadFromFile`/`LoadFromUrl`/`IsRevogado`/`VerifySignature`. | 001.000.000 |
+| `ssl_openssl_icpbrasil_ocsp.pas` | `TIcpBrasilOcspClient` com bindings auto-contidos (`OCSP_REQUEST_*`, `OCSP_RESPONSE_*`, `OCSP_basic_verify`). POST `application/ocsp-request` via httpsend. | 001.000.000 |
+| `ssl_openssl_icpbrasil_extparsers.pas` | Parsers AIA (`1.3.6.1.5.5.7.1.1`) + CDP (`2.5.29.31`) — extracao de URLs OCSP/caIssuers/CRL. | 001.000.000 |
+
+**`ssl_openssl_chain_verify.pas`** ganha bindings CRL: `LoadCrlFromBytes`/`LoadCrlFromPEM`/`FreeCrl`/`VerifyCrlSignature`/`IsRevogadoNaCRL`.
+
+**Novo enum + novos campos no record:**
+
+```pascal
+type
+  TRevogacaoMode = (rmNone, rmCRL, rmOCSP, rmOCSPThenCRL, rmCRLThenOCSP);
+
+  // TLerDoPfxOptions ganha:
+  VerificarRevogacao: TRevogacaoMode;
+  CrlCacheDir:        string;
+  OcspTimeoutMs:      Integer;
+
+  // TIcpBrasilCertificado ganha:
+  RevogacaoVerificada: Boolean;
+  Revogado:            Boolean;
+  RevogacaoMotivo:     string;
+  RevogacaoData:       TDateTime;
+  RevogacaoFonte:      string;
+  RevogacaoTimestamp:  TDateTime;
+  OcspUrls:            array of string;
+  CaIssuersUrls:       array of string;
+  CrlUrls:             array of string;
+```
+
+### v41.8 (2026-05-01, S11 — subject enrichment SAN/KU/EKU/OAB)
+
+Cobertura completa DOC-ICP-04 v8.x. Detalhes em [`Documentation/docs-extra/san-parsing.md`](Documentation/docs-extra/san-parsing.md) (a criar) e [`Documentation/docs-extra/oab-digital.md`](Documentation/docs-extra/oab-digital.md) (a criar).
+
+**1 nova unit CSL:** `ssl_openssl_icpbrasil_san.pas` (001.000.000) — Parsers para extensões `2.5.29.17` (SAN), `2.5.29.15` (Key Usage), `2.5.29.37` (Extended Key Usage) + OID `2.16.76.1.3.10` (OAB digital).
+
+**8 novos campos no record:** `DnsNames`, `IpAddresses`, `Uris`, `SanEmails`, `KeyUsageEncontrada`/`KeyUsageStr`, `ExtKeyUsageOids`/`ExtKeyUsageNames`, `OabNumero`/`OabUf`. Helper `KeyUsageToString` + dictionary `EkuOidName`.
+
+### v41.9 (2026-05-01, S12 — PKCS#7/CAdES + RFC 3161 TSP)
+
+Synapse passa a ser **standalone para emissão fiscal** — assinatura nativa sem dependência de XmlSec/MSXML. Detalhes em [`Documentation/docs-extra/cades-signing.md`](Documentation/docs-extra/cades-signing.md) (a criar).
+
+**2 novas units CSL:**
+
+| Unit | Propósito | Versão |
+| --- | --- | --- |
+| `ssl_openssl_icpbrasil_pkcs7.pas` | `TPkcs7Signer` com bindings `PKCS7_sign`/`PKCS7_verify`/`i2d_PKCS7`. Modos `psBinarioCMS`/`psDetached` (NFe)/`psAttached`/`psBase64`. | 001.000.000 |
+| `ssl_openssl_icpbrasil_tsp.pas` | `TTspClient` (RFC 3161). Constroi TimeStampReq DER manualmente (sem dependência de OpenSSL TS_REQ). POST `application/timestamp-query` via httpsend. | 001.000.000 |
+
+### v42.0 (2026-05-01, S13a + S13b — Hardware: Windows Store + PKCS#11 cross-platform)
+
+A grande lacuna do Synapse face ao ACBr fechada — e mais ainda: **Synapse é a única biblioteca Pascal com PKCS#11 portátil** (Linux/macOS/Windows). Detalhes em [`Documentation/docs-extra/winstore.md`](Documentation/docs-extra/winstore.md) (a criar) e [`Documentation/docs-extra/pkcs11.md`](Documentation/docs-extra/pkcs11.md) (a criar).
+
+**2 novas units CSL:**
+
+| Unit | Propósito | Versão |
+| --- | --- | --- |
+| `ssl_openssl_icpbrasil_winstore.pas` (Windows-only) | `TWinCertStore` (slMy/slCurrentUser/slLocalMachine), `EnumerateCertificates`, `FindByThumbprint`. Função pública `IsCertificadoEmHardware` adapta `ACBrDFeWinCrypt.GetCertIsHardware` (LGPL v2.1). | 001.000.000 |
+| `ssl_openssl_icpbrasil_pkcs11.pas` (cross-platform) | `TPkcs11Loader` com tipos PKCS#11 standalone. `LoadModule`/`AutoDetectAndLoad` (paths conhecidos: SoftHSM2, eToken, SafeNet em Linux/Windows/macOS). `OpenSession(slot, pin)`. `EnumerateCertificates` (CKO_CERTIFICATE) com extracao de DerBytes. | 001.000.000 |
+
+**Atribuição LGPL:** `IsCertificadoEmHardware` deriva de ACBr LGPL v2.1. Header da unit S13a documenta atribuição explícita (estratégia dual-license).
+
+### v42.1 (2026-05-01, S14 — fiscal helpers + cross-platform fixes)
+
+Sprint final — helpers fiscais one-liner + correções cross-platform descobertas durante validação. Detalhes em [`Documentation/docs-extra/fiscal-helpers.md`](Documentation/docs-extra/fiscal-helpers.md) (a criar).
+
+**1 nova unit CSL:** `ssl_openssl_icpbrasil_fiscal.pas` (001.000.000) — Funções one-liner:
+
+```pascal
+function IsCertificadoNFe(const ACert: TIcpBrasilCertificado): Boolean;
+function IsCertificadoESocial(const ACert: TIcpBrasilCertificado): Boolean;
+function IsCertificadoSerpro(const ACert: TIcpBrasilCertificado): Boolean;
+function IsCertificadoSefaz(const ACert: TIcpBrasilCertificado; const AUf: string): Boolean;
+function IsCertificadoEFDReinf(const ACert: TIcpBrasilCertificado): Boolean;
+function HasExtKeyUsage(const ACert: TIcpBrasilCertificado; const AOID: string): Boolean;
+```
+
+**Cross-platform fixes (todos pré-existentes ou auto-introduzidos em S9/S10/S12/S13):** `{$IFDEF FPC}DynLibs.GetProcAddress` → `{$IFDEF MSWINDOWS}Windows.GetProcAddress` em 6 units (alinhamento com uses clause); `SetDllDirectoryW` declarado externamente para FPC em `ssl_openssl_paths.pas`.
+
+**Build sanity final:** Delphi 12 (`dcc32`) — 65.715 linhas, 0 erros. FPC 3.3.1 Win64 — 12 units S9-S14 compilam isoladamente sem erros.
+
+#### Quick start — leitura de PFX ICP-Brasil (v41.5)
+
+```pascal
+uses ssl_openssl_icpbrasil, ssl_openssl_icpbrasil_subject;
 
 var
   LPfx: array of Byte;
@@ -68,14 +250,31 @@ begin
     ibtECnpj: WriteLn('e-CNPJ ', LCert.DocumentoFormatado);
     ibtECpf:  WriteLn('e-CPF  ', LCert.DocumentoFormatado);
   end;
-  WriteLn('Titular: ', LCert.SubjectTitular);
-  WriteLn('Vence:   ', DateToStr(LCert.NotAfter));
+  WriteLn('Titular:       ', LCert.SubjectTitular);
+  WriteLn('Certificadora: ', LCert.Certificadora);              // novo S8
+  WriteLn('Serie:         ', LCert.NumeroSerie);                // novo S8
+  WriteLn('Thumbprint:    ', LCert.ThumbPrintSHA256);           // novo S8
+  WriteLn('Versao X509:   v', IntToStr(LCert.Versao + 1));      // novo S8 (0=v1, 2=v3)
+  WriteLn('Vence:         ', DateToStr(LCert.NotAfter));
+  WriteLn('Dias restantes: ', LCert.DiasParaExpirar);           // novo S8 (helper)
+
+  // Validacao fiscal (NFe / eSocial / EFD-Reinf):
+  if LCert.EstaValido and                                        // novo S8
+     MatchCnpjRaiz(LCert.SubjectDocumento, AnsiString('12345678000190')) then  // novo S8
+    WriteLn('OK para assinar documento fiscal.')
+  else
+    WriteLn('Cert expirado ou CNPJ raiz divergente.');
 end;
 ```
 
 Excecoes possiveis: `EIcpBrasilSenhaInvalida`, `EIcpBrasilPfxCorrompido`,
 `EIcpBrasilNaoIcpBrasil`. Versao tolerante: `TentarLerDoPfx` (devolve
 `Tipo=ibtDesconhecido` em vez de raise para certs nao-ICP-Brasil).
+
+**Compatibilidade de certs antigos (v41.5):** o leitor agora reconhece OID
+`2.16.76.1.3.3` legacy (DOC-ICP-04 pré-v3) como fallback automático para
+`2.16.76.1.3.7` — e-CNPJ A1 antigos que populavam apenas `.3` deixam de
+falhar silenciosamente.
 
 Documentacao adicional: [`docs-extra/icpbrasil-oids.md`](docs-extra/icpbrasil-oids.md),
 [`docs-extra/integration-guide.md`](docs-extra/integration-guide.md),
@@ -89,14 +288,14 @@ DUnitX, vetores 100% sinteticos).
 
 | Item | Versão atual |
 | --- | --- |
-| `synapse.dpk` | 41.4 (47 units) |
-| `laz_synapse.lpk` | 41.4 (48 entries) |
-| `VERSION.md` / `CHANGELOG.md` | 41.4 |
+| `synapse.dpk` | 42.1 (60 units) |
+| `laz_synapse.lpk` | 42.1 (60 entries) |
+| `VERSION.md` / `CHANGELOG.md` | 42.1 |
 
 ### `laz_synapse.lpk` (actualizado)
 
 - Upstream: 41.0, 35 files.
-- CSL fork: **41.3, 42 files** — adicionadas as 3 unit novas acima + 4 SSL legacy (`ssl_openssl`, `ssl_openssl_lib`, `ssl_openssl11`, `ssl_openssl11_lib`) que o upstream não incluía. Patches V41.2 e V41.3 foram aplicados em `ldapsend.pas` sem alterar o inventário de units.
+- CSL fork: **42.1, 60 files** — V41.4 (6 units ICP-Brasil + `ssl_openssl_x509_ext`); V41.6 (`ssl_openssl_chain_verify` + `ssl_openssl_icpbrasil_policy`); V41.7 (`ssl_openssl_icpbrasil_crl` + `ssl_openssl_icpbrasil_ocsp` + `ssl_openssl_icpbrasil_extparsers`); V41.8 (`ssl_openssl_icpbrasil_san`); V41.9 (`ssl_openssl_icpbrasil_pkcs7` + `ssl_openssl_icpbrasil_tsp`); V42.0 (`ssl_openssl_icpbrasil_winstore` + `ssl_openssl_icpbrasil_pkcs11`); V42.1 (`ssl_openssl_icpbrasil_fiscal`).
 
 ---
 
@@ -776,5 +975,13 @@ Ficheiros onde o upstream ficou à frente da cópia CSL após as modificações 
 
 - **Upstream Synapse:** BSD style — ver cabeçalho de cada `.pas`.
 - **Fork CSL 2026-04-21** (`ssl_openssl4*`, `ssl_openssl_paths`, `synapse.dpk`): ver cabeçalho de cada ficheiro. Portions created by CSL Softwares Copyright (c)2026.
+- **Fork CSL 2026-04-30** (V41.4 — leitor PFX X509 + tropicalização ICP-Brasil DOC-ICP-04): ver cabeçalho de cada ficheiro. Portions created by CSL Tech Solutions Copyright (c)2026.
+- **Fork CSL 2026-05-01** (V41.5 — S8 quick wins ICP-Brasil): mesmas 7 units bumped 001.000.000 → 001.001.000. Portions created by CSL Tech Solutions Copyright (c)2026.
+- **Fork CSL 2026-05-01** (V41.6 — S9 chain validation + Certificate Policies): 2 novas units (`ssl_openssl_chain_verify.pas`, `ssl_openssl_icpbrasil_policy.pas`) + bumps 001.001.000 → 001.002.000 em `ssl_openssl_icpbrasil.pas` e `ssl_openssl_icpbrasil_types.pas`. Bundle script `bundles/AC-Raiz-ICP-Brasil-fetch.ps1`. Portions created by CSL Tech Solutions Copyright (c)2026.
+- **Fork CSL 2026-05-01** (V41.7 — S10 revogação CRL+OCSP+AIA+CDP): 3 novas units (`ssl_openssl_icpbrasil_crl.pas`, `ssl_openssl_icpbrasil_ocsp.pas`, `ssl_openssl_icpbrasil_extparsers.pas`) + bumps 001.001.000 → 001.002.000 em `ssl_openssl_chain_verify.pas`. Portions created by CSL Tech Solutions Copyright (c)2026.
+- **Fork CSL 2026-05-01** (V41.8 — S11 SAN/KU/EKU/OAB): 1 nova unit (`ssl_openssl_icpbrasil_san.pas`). Portions created by CSL Tech Solutions Copyright (c)2026.
+- **Fork CSL 2026-05-01** (V41.9 — S12 PKCS#7/CAdES + RFC 3161 TSP): 2 novas units (`ssl_openssl_icpbrasil_pkcs7.pas`, `ssl_openssl_icpbrasil_tsp.pas`). Portions created by CSL Tech Solutions Copyright (c)2026.
+- **Fork CSL 2026-05-01** (V42.0 — S13a Windows Store + S13b PKCS#11): 2 novas units (`ssl_openssl_icpbrasil_winstore.pas`, `ssl_openssl_icpbrasil_pkcs11.pas`). `IsCertificadoEmHardware` adapta `ACBrDFeWinCrypt.GetCertIsHardware` (ACBr LGPL v2.1) — atribuição no header. Portions created by CSL Tech Solutions Copyright (c)2026.
+- **Fork CSL 2026-05-01** (V42.1 — S14 fiscal helpers): 1 nova unit (`ssl_openssl_icpbrasil_fiscal.pas`) + cross-platform fixes em 6 units. Portions created by CSL Tech Solutions Copyright (c)2026.
 
 Para integrações com RESTRequest4Delphi (`RR4D_SYNAPSE`) ver documentação GestorERP externa.
